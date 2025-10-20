@@ -24,5 +24,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cart', [CartController::class, 'index']);
     Route::delete('/cart/{id}', [CartController::class, 'remove']);
 });
-
+Route::get('/categories', function () {
+    return \Illuminate\Support\Facades\Cache::get('categories_tree', []);  // Returns cached tree
+});
+Route::get('/products/{slug}', [ProductController::class, 'show']);
 Route::post('/discounts/validate', [DiscountController::class, 'validate']);  // Public for cart preview

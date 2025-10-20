@@ -15,8 +15,6 @@ class ProductVariant extends Model
         'price' => 'decimal:2',
         'stock' => 'integer',
     ];
-
-    // Scopes
     public function scopeInStock($query)
     {
         return $query->where('stock', '>', 0);

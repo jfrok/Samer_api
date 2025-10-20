@@ -9,6 +9,11 @@ class ProductResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Filter variants collection for in-stock only (post-load)
+        $inStockVariants = $this->variants->filter(function ($variant) {
+            return $variant->stock > 0;  // Matches the inStock scope logic
+        });
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -18,7 +23,7 @@ class ProductResource extends JsonResource
             'images' => $this->images,
             'slug' => $this->slug,
             'category' => new CategoryResource($this->category),
-            'variants' => ProductVariantResource::collection($this->variants->inStock),
+            'variants' => ProductVariantResource::collection($inStockVariants),  // Fixed: Filter collection here
         ];
     }
 }
