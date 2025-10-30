@@ -16,7 +16,7 @@ class ProductVariantResource extends JsonResource
             'price' => $this->price,
             'stock' => $this->stock,
             'sku' => $this->sku,
-            'product' => new ProductResource($this->whenLoaded('product')),  // Optional back-ref
+            // Removed circular reference to product to avoid infinite loops
         ];
     }
 }

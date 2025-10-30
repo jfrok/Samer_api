@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class DiscountController extends Controller
 {
-    public function validate(Request $request)
+    public function validateCode(Request $request)
     {
         $request->validate(['code' => 'required|string', 'order_amount' => 'required|numeric']);
 

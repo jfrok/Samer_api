@@ -30,12 +30,64 @@ class AddressController extends Controller
             'state' => 'required|string|max:100',
             'country' => 'required|string|max:100',
             'zip_code' => 'required|string|max:20',
+            'is_default' => 'boolean',
         ]);
 
-        $address = Auth::user()->addresses()->create($request->all());
+        $user = Auth::user();
+
+        // If setting as default, unset other defaults
+        if ($request->is_default) {
+            $user->addresses()->update(['is_default' => false]);
+        }
+
+        $address = $user->addresses()->create($request->all());
 
         return response()->json($address, 201);
     }
 
-    // Add update/delete as needed
+    public function show(Address $address)
+    {
+        if ($address->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        return response()->json($address);
+    }
+
+    public function update(Request $request, Address $address)
+    {
+        if ($address->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'type' => 'sometimes|in:shipping,billing',
+            'street' => 'sometimes|string|max:255',
+            'city' => 'sometimes|string|max:100',
+            'state' => 'sometimes|string|max:100',
+            'country' => 'sometimes|string|max:100',
+            'zip_code' => 'sometimes|string|max:20',
+            'is_default' => 'boolean',
+        ]);
+
+        // If setting as default, unset other defaults
+        if ($request->is_default) {
+            Auth::user()->addresses()->update(['is_default' => false]);
+        }
+
+        $address->update($request->all());
+
+        return response()->json($address);
+    }
+
+    public function destroy(Address $address)
+    {
+        if ($address->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $address->delete();
+
+        return response()->json(['message' => 'Address deleted successfully']);
+    }
 }

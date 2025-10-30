@@ -14,40 +14,30 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $cacheKey = 'products_index';
         $search = $request->get('search');
         $categoryId = $request->get('category_id');
 
-        // If search or filter, bypass product cache and query DB
-        if ($search || $categoryId) {
-            $query = Product::active();
-            if ($search) {
-                $query->where('name', 'like', '%' . $search . '%');
-            }
-            if ($categoryId) {
-                // Enhanced: Get all category IDs including sub-categories from cache
-                $categoryIds = $this->getCategoryIds($categoryId);
-                $query->whereIn('category_id', $categoryIds);
-            }
-            // Eager load with inStock scope
-            $products = $query->with([
-                'category',
-                'variants' => function ($q) {
-                    $q->inStock();
-                }
-            ])->paginate(20);
-        } else {
-            // Use product cache for general listings
-            $cachedProducts = Cache::remember($cacheKey, 3600, function () {
-                return Product::active()->with([
-                    'category',
-                    'variants' => function ($query) {
-                        $query->inStock();
-                    }
-                ])->get();
-            });
-            $products = $cachedProducts->forPage(1, 20);  // Manual pagination from cache
+        // Always query DB for now to avoid cache serialization issues
+        // TODO: Implement proper caching with model hydration
+        $query = Product::active();
+
+        if ($search) {
+            $query->where('name', 'like', '%' . $search . '%');
         }
+
+        if ($categoryId) {
+            // Enhanced: Get all category IDs including sub-categories from cache
+            $categoryIds = $this->getCategoryIds($categoryId);
+            $query->whereIn('category_id', $categoryIds);
+        }
+
+        // Eager load with inStock scope
+        $products = $query->with([
+            'category',
+            'variants' => function ($q) {
+                $q->inStock();
+            }
+        ])->paginate(20);
 
         return ProductResource::collection($products);
     }
