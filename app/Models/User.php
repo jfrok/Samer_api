@@ -39,4 +39,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Cart::class);
     }
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
 }

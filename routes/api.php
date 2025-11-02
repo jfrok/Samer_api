@@ -24,7 +24,14 @@ Route::post('/discounts/validate', [DiscountController::class, 'validateCode']);
 
 // Cart routes - allow guest usage
 Route::post('/cart/add', [CartController::class, 'add']);
-Route::get('/cart', [CartController::class, 'index']);// Auth protected
+Route::get('/cart', [CartController::class, 'index']);
+// Admin routes (for now without authentication - add auth middleware later)
+Route::prefix('admin')->group(function () {
+    Route::apiResource('products', ProductController::class);
+    Route::apiResource('categories', CategoryController::class)->except(['show']);
+    Route::get('/dashboard/stats', [ProductController::class, 'dashboardStats']);
+});
+// Auth protected
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::apiResource('orders', OrderController::class)->only(['index', 'show', 'store']);

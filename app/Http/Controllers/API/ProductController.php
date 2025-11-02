@@ -8,7 +8,10 @@ use App\Models\Product;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use App\Models\Category;  // Add this import for fallback
+use App\Models\Category;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -42,10 +45,16 @@ class ProductController extends Controller
         return ProductResource::collection($products);
     }
 
-    public function show($slug)
+    public function show($identifier)
     {
         try {
-            $product = Product::where('slug', $slug)->firstOrFail();  // Explicitly use slug for binding
+            // Check if it's numeric (ID) or string (slug)
+            if (is_numeric($identifier)) {
+                $product = Product::findOrFail($identifier);
+            } else {
+                $product = Product::where('slug', $identifier)->firstOrFail();
+            }
+
             $product->load([
                 'category',
                 'variants' => function ($q) {
@@ -58,6 +67,120 @@ class ProductController extends Controller
             return response()->json(['error' => 'Product not found'], 404);
         }
     }
+
+    // Admin methods
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category_id' => 'required|exists:categories,id',
+            'brand' => 'nullable|string|max:255',
+            'base_price' => 'required|numeric|min:0',
+            'images' => 'nullable|array',
+            'images.*' => 'string|url',
+            'is_active' => 'boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $data['slug'] = Str::slug($data['name']);
+
+        // Ensure unique slug
+        $originalSlug = $data['slug'];
+        $counter = 1;
+        while (Product::where('slug', $data['slug'])->exists()) {
+            $data['slug'] = $originalSlug . '-' . $counter;
+            $counter++;
+        }
+
+        $product = Product::create($data);
+        $product->load(['category', 'variants']);
+
+        return new ProductResource($product);
+    }
+
+    public function update(Request $request, Product $product)
+    {
+        // Add logging to debug the issue
+        Log::info('Product update request received', [
+            'product_id' => $product->id,
+            'request_data' => $request->all()
+        ]);
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'string|max:255',
+            'description' => 'nullable|string',
+            'category_id' => 'exists:categories,id',
+            'brand' => 'nullable|string|max:255',
+            'base_price' => 'numeric|min:0',
+            'images' => 'nullable|array',
+            'images.*' => 'string|url',
+            'is_active' => 'boolean'
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('Product update validation failed', [
+                'product_id' => $product->id,
+                'errors' => $validator->errors()
+            ]);
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // Update slug if name changed
+        if (isset($data['name']) && $data['name'] !== $product->name) {
+            $data['slug'] = Str::slug($data['name']);
+
+            // Ensure unique slug
+            $originalSlug = $data['slug'];
+            $counter = 1;
+            while (Product::where('slug', $data['slug'])->where('id', '!=', $product->id)->exists()) {
+                $data['slug'] = $originalSlug . '-' . $counter;
+                $counter++;
+            }
+        }
+
+        $product->update($data);
+        $product->load(['category', 'variants']);
+
+        Log::info('Product updated successfully', [
+            'product_id' => $product->id,
+            'updated_data' => $data
+        ]);
+
+        return new ProductResource($product);
+    }
+
+    public function destroy(Product $product)
+    {
+        $product->delete();
+        return response()->json(['message' => 'Product deleted successfully']);
+    }
+
+    public function dashboardStats()
+    {
+        $totalProducts = Product::count();
+        $activeProducts = Product::active()->count();
+        $totalCategories = Category::count();
+        $recentProducts = Product::with('category')
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'total_products' => $totalProducts,
+            'active_products' => $activeProducts,
+            'inactive_products' => $totalProducts - $activeProducts,
+            'total_categories' => $totalCategories,
+            'recent_products' => ProductResource::collection($recentProducts)
+        ]);
+    }
+
     // Helper: Get category IDs including sub-categories from cache (or DB fallback)
     private function getCategoryIds($categoryId)
     {
