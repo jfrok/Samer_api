@@ -78,8 +78,19 @@ class ProductController extends Controller
             'brand' => 'nullable|string|max:255',
             'base_price' => 'required|numeric|min:0',
             'images' => 'nullable|array',
-            'images.*' => 'string|url',
-            'is_active' => 'boolean'
+            'images.*' => ['string', function ($attribute, $value, $fail) {
+                // Accept either URL or base64 encoded image
+                if (!filter_var($value, FILTER_VALIDATE_URL) && !preg_match('/^data:image\/(jpeg|jpg|png|gif|webp);base64,/', $value)) {
+                    $fail('The ' . $attribute . ' must be a valid URL or base64 encoded image.');
+                }
+            }],
+            'is_active' => 'boolean',
+            'variants' => 'nullable|array',
+            'variants.*.size' => 'required|string|max:50',
+            'variants.*.color' => 'required|string|max:50',
+            'variants.*.price' => 'required|numeric|min:0',
+            'variants.*.stock' => 'required|integer|min:0',
+            'variants.*.sku' => 'nullable|string|max:100'
         ]);
 
         if ($validator->fails()) {
@@ -97,7 +108,23 @@ class ProductController extends Controller
             $counter++;
         }
 
+        // Extract variants data before creating product
+        $variantsData = $data['variants'] ?? [];
+        unset($data['variants']);
+
         $product = Product::create($data);
+
+        // Create variants
+        if (!empty($variantsData)) {
+            foreach ($variantsData as $variantData) {
+                // Generate SKU if not provided
+                if (empty($variantData['sku'])) {
+                    $variantData['sku'] = $product->id . '-' . $variantData['size'] . '-' . $variantData['color'] . '-' . time();
+                }
+                $product->variants()->create($variantData);
+            }
+        }
+
         $product->load(['category', 'variants']);
 
         return new ProductResource($product);
@@ -118,8 +145,20 @@ class ProductController extends Controller
             'brand' => 'nullable|string|max:255',
             'base_price' => 'numeric|min:0',
             'images' => 'nullable|array',
-            'images.*' => 'string|url',
-            'is_active' => 'boolean'
+            'images.*' => ['string', function ($attribute, $value, $fail) {
+                // Accept either URL or base64 encoded image
+                if (!filter_var($value, FILTER_VALIDATE_URL) && !preg_match('/^data:image\/(jpeg|jpg|png|gif|webp);base64,/', $value)) {
+                    $fail('The ' . $attribute . ' must be a valid URL or base64 encoded image.');
+                }
+            }],
+            'is_active' => 'boolean',
+            'variants' => 'nullable|array',
+            'variants.*.id' => 'nullable|integer|exists:product_variants,id',
+            'variants.*.size' => 'required|string|max:50',
+            'variants.*.color' => 'required|string|max:50',
+            'variants.*.price' => 'required|numeric|min:0',
+            'variants.*.stock' => 'required|integer|min:0',
+            'variants.*.sku' => 'nullable|string|max:100'
         ]);
 
         if ($validator->fails()) {
@@ -131,6 +170,10 @@ class ProductController extends Controller
         }
 
         $data = $validator->validated();
+
+        // Extract variants data
+        $variantsData = $data['variants'] ?? null;
+        unset($data['variants']);
 
         // Update slug if name changed
         if (isset($data['name']) && $data['name'] !== $product->name) {
@@ -146,6 +189,33 @@ class ProductController extends Controller
         }
 
         $product->update($data);
+
+        // Update variants if provided
+        if ($variantsData !== null) {
+            // Get existing variant IDs from request
+            $requestedVariantIds = collect($variantsData)->pluck('id')->filter()->toArray();
+
+            // Delete variants that are not in the request
+            $product->variants()->whereNotIn('id', $requestedVariantIds)->delete();
+
+            // Create or update variants
+            foreach ($variantsData as $variantData) {
+                if (isset($variantData['id'])) {
+                    // Update existing variant
+                    $variant = $product->variants()->find($variantData['id']);
+                    if ($variant) {
+                        $variant->update($variantData);
+                    }
+                } else {
+                    // Create new variant
+                    if (empty($variantData['sku'])) {
+                        $variantData['sku'] = $product->id . '-' . $variantData['size'] . '-' . $variantData['color'] . '-' . time();
+                    }
+                    $product->variants()->create($variantData);
+                }
+            }
+        }
+
         $product->load(['category', 'variants']);
 
         Log::info('Product updated successfully', [

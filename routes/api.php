@@ -12,6 +12,7 @@ use App\Http\Controllers\API\AddressController;
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);
 
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{slug}', [ProductController::class, 'show']);
