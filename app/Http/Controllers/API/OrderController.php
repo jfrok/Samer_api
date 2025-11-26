@@ -6,25 +6,98 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Cart;
 use App\Models\ProductVariant;
 use App\Models\Discount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth:sanctum');
+        // Only apply auth to user methods, not admin methods
+        $this->middleware('auth:sanctum')->except(['adminIndex', 'adminShow', 'adminUpdate']);
     }
 
     public function index()
     {
-        $orders = Auth::user()->orders()->with('items.productVariant.product', 'shippingAddress')->paginate(10);
+        $orders = Order::where('user_id', Auth::id())
+            ->with([
+                'items.productVariant.product',
+                'shippingAddress'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
 
         return OrderResource::collection($orders);
+    }
+
+    // Admin methods
+    public function adminIndex(Request $request)
+    {
+        $query = Order::with([
+            'user',
+            'items.productVariant.product',
+            'shippingAddress'
+        ]);
+
+        // Filter by status
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by payment status
+        if ($request->has('payment_status') && $request->payment_status) {
+            $query->where('payment_status', $request->payment_status);
+        }
+
+        // Search by order number or customer name
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('order_number', 'like', '%' . $search . '%')
+                  ->orWhere('reference_number', 'like', '%' . $search . '%')
+                  ->orWhereHas('user', function($userQuery) use ($search) {
+                      $userQuery->where('name', 'like', '%' . $search . '%')
+                                ->orWhere('email', 'like', '%' . $search . '%');
+                  });
+            });
+        }
+
+        $orders = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        return OrderResource::collection($orders);
+    }
+
+    public function adminShow(Order $order)
+    {
+        $order->load([
+            'user',
+            'items.productVariant.product',
+            'shippingAddress'
+        ]);
+
+        return new OrderResource($order);
+    }
+
+    public function adminUpdate(Request $request, Order $order)
+    {
+        $request->validate([
+            'status' => 'nullable|in:pending,processing,shipped,delivered,cancelled',
+            'payment_status' => 'nullable|in:pending,paid,failed'
+        ]);
+
+        $order->update($request->only(['status', 'payment_status']));
+
+        $order->load([
+            'user',
+            'items.productVariant.product',
+            'shippingAddress'
+        ]);
+
+        return new OrderResource($order);
     }
 
     public function show(Order $order)
@@ -33,7 +106,10 @@ class OrderController extends Controller
             abort(403);
         }
 
-        $order->load('items.productVariant.product', 'shippingAddress', 'payment');
+        $order->load([
+            'items.productVariant.product',
+            'shippingAddress'
+        ]);
 
         return new OrderResource($order);
     }
@@ -41,73 +117,128 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'shipping_address_id' => 'required|exists:addresses,id',
-            'payment_method' => 'required|string',
+            'shipping_address' => 'required|array',
+            'shipping_address.firstName' => 'required|string',
+            'shipping_address.lastName' => 'required|string',
+            'shipping_address.email' => 'required|email',
+            'shipping_address.address' => 'required|string',
+            'shipping_address.city' => 'required|string',
+            'shipping_address.postalCode' => 'nullable|string',
+            'payment_method' => 'required|in:card,cash',
             'discount_code' => 'nullable|string',
         ]);
 
         $user = Auth::user();
         $discount = null;
+
         if ($request->discount_code) {
             $discount = Discount::active()->where('code', $request->discount_code)->first();
-            if (!$discount || !$discount->isApplicable(0)) {  // Validate later with total
+            if (!$discount || !$discount->isApplicable(0)) {
                 return response()->json(['error' => 'Invalid discount'], 400);
             }
         }
 
-        // Get cart items
-        $cartItems = $user->cartItems()->with('productVariant')->get();
-        if ($cartItems->isEmpty()) {
+        // Get cart items from request body instead of database
+        // The frontend will send the cart items with the order
+        $cartItems = $request->input('cart_items', []);
+
+        if (empty($cartItems)) {
             return response()->json(['error' => 'Cart is empty'], 400);
         }
 
-        DB::transaction(function () use ($request, $user, $cartItems, $discount) {
+        DB::beginTransaction();
+        try {
+            // Calculate totals
             $total = 0;
             foreach ($cartItems as $item) {
-                $total += $item->productVariant->price * $item->quantity;
+                $price = $item['price'] ?? 0;
+                $quantity = $item['quantity'] ?? 1;
+                $total += $price * $quantity;
             }
 
             if ($discount && !$discount->isApplicable($total)) {
-                throw new \Exception('Discount not applicable');
+                DB::rollBack();
+                return response()->json(['error' => 'Discount not applicable'], 400);
             }
 
             $discountAmount = $discount ? $discount->calculateDiscount($total) : 0;
             $finalTotal = $total - $discountAmount;
 
+            // Create shipping address
+            $shippingAddress = \App\Models\Address::create([
+                'user_id' => $user->id,
+                'first_name' => $request->input('shipping_address.firstName'),
+                'last_name' => $request->input('shipping_address.lastName'),
+                'street' => $request->input('shipping_address.address'),
+                'city' => $request->input('shipping_address.city'),
+                'state' => $request->input('shipping_address.city'), // Use city as state for now
+                'zip_code' => $request->input('shipping_address.postalCode', '00000'),
+                'country' => 'IQ', // Default to Iraq
+                'phone' => $request->input('shipping_address.phone', ''),
+                'is_default' => false,
+            ]);
+
             // Create order
             $order = Order::create([
                 'user_id' => $user->id,
-                'status' => 'pending',
+                'order_number' => 'ORD-' . strtoupper(uniqid()),
+                'reference_number' => 'REF-' . now()->format('Ymd') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT),
+                'status' => $request->payment_method === 'cash' ? 'pending' : 'processing',
                 'total_amount' => $finalTotal,
                 'discount_amount' => $discountAmount,
-                'shipping_address_id' => $request->shipping_address_id,
+                'shipping_address_id' => $shippingAddress->id,
                 'payment_method' => $request->payment_method,
+                'payment_status' => $request->payment_method === 'cash' ? 'pending' : 'paid',
             ]);
 
-            // Create order items and update stock
+            // Create order items
             foreach ($cartItems as $cartItem) {
-                $variant = $cartItem->productVariant;
+                $productId = $cartItem['product_id'] ?? null;
+                $variantId = $cartItem['product_variant_id'] ?? null;
+
+                // If no variant specified, get the first variant for this product
+                if (!$variantId && $productId) {
+                    $variant = ProductVariant::where('product_id', $productId)->first();
+                    if ($variant) {
+                        $variantId = $variant->id;
+                    }
+                }
+
                 OrderItem::create([
                     'order_id' => $order->id,
-                    'product_variant_id' => $variant->id,
-                    'quantity' => $cartItem->quantity,
-                    'price' => $variant->price,
+                    'product_variant_id' => $variantId,
+                    'quantity' => $cartItem['quantity'] ?? 1,
+                    'price' => $cartItem['price'] ?? 0,
+                    'subtotal' => ($cartItem['price'] ?? 0) * ($cartItem['quantity'] ?? 1),
                 ]);
-
-                $variant->decrement('stock', $cartItem->quantity);
             }
 
-            // Clear cart
-            $user->cartItems()->delete();
+            // Clear cart - remove this since we don't have cart_items table
+            // Cart will be cleared on the frontend after successful order
 
             // Increment discount uses
             if ($discount) {
                 $discount->increment('uses_count');
             }
 
-            // TODO: Create payment record and integrate gateway (e.g., Stripe)
-        });
+            DB::commit();
 
-        return response()->json(['message' => 'Order created', 'order' => $order], 201);
+            return response()->json([
+                'message' => 'Order created successfully',
+                'order' => [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'total_amount' => $order->total_amount,
+                    'payment_method' => $order->payment_method,
+                    'created_at' => $order->created_at,
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order creation failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to create order: ' . $e->getMessage()], 500);
+        }
     }
 }

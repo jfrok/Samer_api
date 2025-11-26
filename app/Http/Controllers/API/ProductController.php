@@ -17,21 +17,60 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $search = $request->get('search');
-        $categoryId = $request->get('category_id');
+        // Validate and sanitize input for security
+        $validator = Validator::make($request->all(), [
+            'search' => 'nullable|string|max:100',
+            'category_id' => 'nullable|integer|exists:categories,id',
+            'sort_by' => 'nullable|string|in:created_at,name,base_price,updated_at',
+            'sort_order' => 'nullable|string|in:asc,desc',
+            'page' => 'nullable|integer|min:1',
+        ]);
 
-        // Always query DB for now to avoid cache serialization issues
-        // TODO: Implement proper caching with model hydration
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => 'Invalid search parameters',
+                'details' => $validator->errors()
+            ], 422);
+        }
+
+        // Sanitize search input (prevent XSS and SQL injection)
+        $search = $request->get('search');
+        if ($search) {
+            // Remove any HTML tags and script tags
+            $search = strip_tags($search);
+            // Remove special characters that could be used for SQL injection
+            $search = preg_replace('/[^\p{L}\p{N}\s\-\_]/u', '', $search);
+            // Limit length
+            $search = substr($search, 0, 100);
+            $search = trim($search);
+        }
+
+        $categoryId = $request->get('category_id');
+        $sortBy = $request->get('sort_by', 'created_at'); // Default to newest first
+        $sortOrder = $request->get('sort_order', 'desc'); // Default to descending
+
+        // Build query with security in mind
         $query = Product::active();
 
-        if ($search) {
-            $query->where('name', 'like', '%' . $search . '%');
+        if ($search && strlen($search) > 0) {
+            // Use parameterized query to prevent SQL injection
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%')
+                  ->orWhere('brand', 'like', '%' . $search . '%');
+            });
         }
 
         if ($categoryId) {
             // Enhanced: Get all category IDs including sub-categories from cache
             $categoryIds = $this->getCategoryIds($categoryId);
             $query->whereIn('category_id', $categoryIds);
+        }
+
+        // Apply sorting (already validated above)
+        $allowedSortFields = ['created_at', 'name', 'base_price', 'updated_at'];
+        if (in_array($sortBy, $allowedSortFields)) {
+            $query->orderBy($sortBy, $sortOrder === 'asc' ? 'asc' : 'desc');
         }
 
         // Eager load with inStock scope

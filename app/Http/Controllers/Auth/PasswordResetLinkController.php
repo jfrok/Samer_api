@@ -29,11 +29,21 @@ class PasswordResetLinkController extends Controller
         );
 
         if ($status != Password::RESET_LINK_SENT) {
+            // Return friendly error messages without translation
+            $message = match($status) {
+                Password::INVALID_USER => 'We could not find a user with that email address.',
+                Password::RESET_THROTTLED => 'Please wait before retrying.',
+                default => 'Unable to send password reset link. Please try again later.'
+            };
+
             throw ValidationException::withMessages([
-                'email' => [__($status)],
+                'email' => [$message],
             ]);
         }
 
-        return response()->json(['success' => true,'status' => __($status)]);
+        return response()->json([
+            'success' => true,
+            'status' => 'We have emailed your password reset link!'
+        ]);
     }
 }
