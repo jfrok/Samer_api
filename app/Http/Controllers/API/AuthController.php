@@ -53,6 +53,36 @@ class AuthController extends Controller
         return response()->json(['token' => $token, 'user' => $user]);
     }
 
+    /**
+     * Admin login endpoint - only allows users with role 'admin'
+     */
+    public function adminLogin(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        $user = Auth::user();
+
+        // Ensure user has admin role
+        if (!isset($user->role) || strtolower($user->role) !== 'admin') {
+            // Log out the attempted session token
+            auth()->logout();
+            return response()->json(['message' => 'Unauthorized - admin access required'], 403);
+        }
+
+        $token = $user->createToken('admin_auth_token')->plainTextToken;
+
+        return response()->json(['token' => $token, 'user' => $user]);
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
