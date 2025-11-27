@@ -10,8 +10,8 @@ class Order extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'status', 'total_amount', 'discount_amount', 'shipping_address_id',
-        'payment_method', 'tracking_number', 'notes', 'ordered_at'
+        'user_id', 'reference_number', 'order_number', 'status', 'total_amount', 'discount_amount', 'shipping_address_id',
+        'payment_method', 'tracking_number', 'notes', 'ordered_at', 'payment_status'
     ];
 
     protected $casts = [
@@ -25,6 +25,14 @@ class Order extends Model
         parent::boot();
         static::creating(function ($order) {
             $order->ordered_at = now();
+
+            // Generate reference number: REF-YYYYMMDD-XXXX (e.g., REF-20251117-1234)
+            $date = now()->format('Ymd');
+            $random = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            $order->reference_number = "REF-{$date}-{$random}";
+
+            // Generate order number: ORD-XXXXXXXXX (e.g., ORD-674A2B1C3)
+            $order->order_number = 'ORD-' . strtoupper(uniqid());
         });
     }
 

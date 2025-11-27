@@ -95,7 +95,7 @@ return [
             'provider' => 'users',
             'table' => 'password_reset_tokens',
             'expire' => 60,
-            'throttle' => 60,
+            'throttle' => 10, // Reduced from 60 to 10 seconds for development
         ],
     ],
 

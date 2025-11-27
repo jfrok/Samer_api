@@ -47,6 +47,15 @@ class CartController extends Controller
         // Manually authenticate user
         $user = $this->authenticateUser($request);
 
+        $authHeader = $request->header('Authorization');
+        Log::info('CartController::add called', [
+            'request_data' => $request->all(),
+            'user_id' => $user ? $user->id : null,
+            'is_authenticated' => $user !== null,
+            'auth_header' => $authHeader ? 'Present' : 'Missing',
+            'auth_header_preview' => $authHeader ? substr($authHeader, 0, 20) . '...' : null
+        ]);
+
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'product_variant_id' => 'nullable|exists:product_variants,id',
@@ -54,9 +63,11 @@ class CartController extends Controller
         ]);
 
         $userId = $user ? $user->id : null;
+        Log::info('User authentication status', ['user_id' => $userId, 'auth_check' => $user !== null]);
 
         // For guests, return a response without saving to database
         if (!$userId) {
+            Log::info('Processing guest cart item');
             $product = Product::findOrFail($request->product_id);
 
             // Get or create default variant
@@ -178,8 +189,11 @@ class CartController extends Controller
         $user = $this->authenticateUser($request);
         $userId = $user ? $user->id : null;
 
+        Log::info('CartController::index called', ['user_id' => $userId, 'is_authenticated' => $user !== null]);
+
         // For guests, return empty cart
         if (!$userId) {
+            Log::info('Returning empty cart for guest user');
             return response()->json([
                 'items' => [],
                 'total_items' => 0,
@@ -190,6 +204,8 @@ class CartController extends Controller
         $carts = Cart::where('user_id', $userId)
             ->with(['productVariant.product'])
             ->get();
+
+        Log::info('Found cart items for user', ['user_id' => $userId, 'cart_count' => $carts->count()]);
 
         $cartData = [
             'items' => CartResource::collection($carts),

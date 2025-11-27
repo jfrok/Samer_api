@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -56,5 +58,59 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out']);
+    }
+
+    /**
+     * Handle OAuth callback and authenticate user
+     */
+    public function handleOAuthCallback(Request $request)
+    {
+        $request->validate([
+            'provider' => 'required|in:google,facebook',
+            'access_token' => 'required|string',
+        ]);
+
+        try {
+            $provider = $request->provider;
+
+            // Get user info from provider using the access token
+            $providerUser = Socialite::driver($provider)->userFromToken($request->access_token);
+
+            // Find or create user
+            $user = User::where('email', $providerUser->getEmail())->first();
+
+            if (!$user) {
+                // Create new user from OAuth provider
+                $user = User::create([
+                    'name' => $providerUser->getName() ?? $providerUser->getNickname() ?? 'User',
+                    'email' => $providerUser->getEmail(),
+                    'password' => Hash::make(Str::random(32)), // Random password for OAuth users
+                    'email_verified_at' => now(), // OAuth emails are pre-verified
+                    'provider' => $provider,
+                    'provider_id' => $providerUser->getId(),
+                ]);
+            } else {
+                // Update provider info if user exists
+                $user->update([
+                    'provider' => $provider,
+                    'provider_id' => $providerUser->getId(),
+                ]);
+            }
+
+            // Create token for the user
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'token' => $token,
+                'user' => $user,
+                'message' => 'Successfully authenticated with ' . ucfirst($provider)
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to authenticate with OAuth provider',
+                'error' => $e->getMessage()
+            ], 400);
+        }
     }
 }

@@ -8,12 +8,25 @@ use App\Http\Controllers\API\CartController;
 use App\Http\Controllers\API\OrderController;
 use App\Http\Controllers\API\DiscountController;
 use App\Http\Controllers\API\AddressController;
+use App\Http\Controllers\API\ReviewController;
+use App\Http\Controllers\API\ProfileController;
+use App\Http\Controllers\API\PackageDealController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);
 
-Route::get('/products', [ProductController::class, 'index']);
+// Password reset routes
+Route::post('/forgot-password', [PasswordResetLinkController::class, 'store']);
+Route::post('/reset-password', [NewPasswordController::class, 'store']);
+
+// Product routes with rate limiting for search (60 requests per minute)
+Route::middleware('throttle:60,1')->group(function () {
+    Route::get('/products', [ProductController::class, 'index']);
+});
 Route::get('/products/{slug}', [ProductController::class, 'show']);
 
 Route::get('/categories', [CategoryController::class, 'index']);
@@ -22,14 +35,61 @@ Route::post('/categories/clear-cache', [CategoryController::class, 'clearCache']
 
 Route::post('/discounts/validate', [DiscountController::class, 'validateCode']);  // Public for cart preview
 
+// Public review routes
+Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
+
+// Package deals routes
+Route::get('/packages', [PackageDealController::class, 'index']);
+Route::get('/packages/featured', [PackageDealController::class, 'featured']);
+Route::get('/packages/{slug}', [PackageDealController::class, 'show']);
+
 // Cart routes - allow guest usage
 Route::post('/cart/add', [CartController::class, 'add']);
-Route::get('/cart', [CartController::class, 'index']);// Auth protected
+Route::get('/cart', [CartController::class, 'index']);
+// Admin routes (for now without authentication - add auth middleware later)
+Route::prefix('admin')->group(function () {
+    Route::apiResource('products', ProductController::class);
+    Route::apiResource('categories', CategoryController::class)->except(['show']);
+    Route::get('/dashboard/stats', [ProductController::class, 'dashboardStats']);
+
+    // Orders admin routes
+    Route::get('/orders', [OrderController::class, 'adminIndex']);
+    Route::get('/orders/{order}', [OrderController::class, 'adminShow']);
+    Route::patch('/orders/{order}', [OrderController::class, 'adminUpdate']);
+
+    // Package deals admin routes
+    Route::apiResource('packages', PackageDealController::class)->except(['index', 'show']);
+});
+// Auth protected
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Profile routes with rate limiting
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::get('/profile/activity', [ProfileController::class, 'activitySummary']);
+    Route::middleware('throttle:5,1')->group(function () {
+        Route::put('/profile', [ProfileController::class, 'update']);
+    });
+    Route::middleware('throttle:3,60')->group(function () {
+        Route::delete('/profile', [ProfileController::class, 'destroy']);
+    });
+
     Route::apiResource('orders', OrderController::class)->only(['index', 'show', 'store']);
     Route::apiResource('addresses', AddressController::class);
+
+    // Cart clear must come before cart/{id} to avoid route conflict
+    Route::delete('/cart/clear', [CartController::class, 'clear']);
     Route::delete('/cart/{id}', [CartController::class, 'remove']);
     Route::patch('/cart/{id}', [CartController::class, 'update']);
-    Route::delete('/cart/clear', [CartController::class, 'clear']);
+
+    // Review routes with rate limiting
+    Route::middleware('throttle:10,1')->group(function () {
+        Route::post('/products/{productId}/reviews', [ReviewController::class, 'store']);
+        Route::get('/products/{productId}/reviews/can-review', [ReviewController::class, 'canReview']);
+    });
+
+    Route::middleware('throttle:20,1')->group(function () {
+        Route::put('/reviews/{id}', [ReviewController::class, 'update']);
+        Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
+    });
 });

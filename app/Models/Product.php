@@ -19,6 +19,16 @@ class Product extends Model
         'is_active' => 'boolean',
     ];
 
+    // Accessors
+    public function getImageUrlAttribute()
+    {
+        // Return the first image from the images array, or a placeholder
+        if ($this->images && is_array($this->images) && count($this->images) > 0) {
+            return $this->images[0];
+        }
+        return '/api/placeholder/300/300';
+    }
+
     // Scopes
     public function scopeActive($query)
     {
