@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);
 
 // Password reset routes
