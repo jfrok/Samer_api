@@ -43,6 +43,9 @@ Route::get('/packages', [PackageDealController::class, 'index']);
 Route::get('/packages/featured', [PackageDealController::class, 'featured']);
 Route::get('/packages/{slug}', [PackageDealController::class, 'show']);
 
+// Public order tracking by reference (used by email tracking links)
+Route::get('/orders/ref/{reference}', [OrderController::class, 'publicShowByReference']);
+
 // Cart routes - allow guest usage
 Route::post('/cart/add', [CartController::class, 'add']);
 Route::get('/cart', [CartController::class, 'index']);
@@ -75,6 +78,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::apiResource('orders', OrderController::class)->only(['index', 'show', 'store']);
+    // Secure endpoint to fetch order by reference number (safer than exposing DB id)
+    Route::get('/orders/ref/{reference}', [OrderController::class, 'showByReference']);
     Route::apiResource('addresses', AddressController::class);
 
     // Cart clear must come before cart/{id} to avoid route conflict
