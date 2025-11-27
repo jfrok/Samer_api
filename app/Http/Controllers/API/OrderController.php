@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Discount;
+use App\Notifications\OrderCreatedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -110,6 +111,37 @@ class OrderController extends Controller
             'items.productVariant.product',
             'shippingAddress'
         ]);
+
+        return new OrderResource($order);
+    }
+
+    /**
+     * Show an order by its reference number for authenticated user.
+     */
+    public function showByReference($reference)
+    {
+        $order = Order::with([
+            'items.productVariant.product',
+            'shippingAddress'
+        ])->where('reference_number', $reference)->firstOrFail();
+
+        if ($order->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        return new OrderResource($order);
+    }
+
+    /**
+     * Public: Show an order by its reference number without authentication.
+     * Intended for tracking links sent by email. Be cautious exposing sensitive data.
+     */
+    public function publicShowByReference($reference)
+    {
+        $order = Order::with([
+            'items.productVariant.product',
+            'shippingAddress'
+        ])->where('reference_number', $reference)->firstOrFail();
 
         return new OrderResource($order);
     }
@@ -222,6 +254,15 @@ class OrderController extends Controller
             }
 
             DB::commit();
+
+            // Send order created notification to the customer
+            try {
+                if ($order->user) {
+                    $order->user->notify(new OrderCreatedNotification($order));
+                }
+            } catch (\Exception $e) {
+                Log::error('Order notification failed: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'message' => 'Order created successfully',
