@@ -13,13 +13,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\OwnerOrderCreatedNotification;
 
 class OrderController extends Controller
 {
     public function __construct()
     {
         // Only apply auth to user methods, not admin methods
-        $this->middleware('auth:sanctum')->except(['adminIndex', 'adminShow', 'adminUpdate']);
+        // Admin methods are protected by route middleware in api.php
+        $this->middleware('auth:sanctum')->only(['index', 'show', 'showByReference', 'store']);
     }
 
     public function index()
@@ -153,6 +156,7 @@ class OrderController extends Controller
             'shipping_address.firstName' => 'required|string',
             'shipping_address.lastName' => 'required|string',
             'shipping_address.email' => 'required|email',
+            'shipping_address.phone' => 'nullable|string',
             'shipping_address.address' => 'required|string',
             'shipping_address.city' => 'required|string',
             'shipping_address.postalCode' => 'nullable|string',
@@ -210,6 +214,9 @@ class OrderController extends Controller
                 'is_default' => false,
             ]);
 
+            // Extract phone for order record; do not modify users table
+            $phone = $request->input('shipping_address.phone');
+
             // Create order
             $order = Order::create([
                 'user_id' => $user->id,
@@ -219,6 +226,7 @@ class OrderController extends Controller
                 'total_amount' => $finalTotal,
                 'discount_amount' => $discountAmount,
                 'shipping_address_id' => $shippingAddress->id,
+                'phone' => $phone,
                 'payment_method' => $request->payment_method,
                 'payment_status' => $request->payment_method === 'cash' ? 'pending' : 'paid',
             ]);
@@ -262,6 +270,19 @@ class OrderController extends Controller
                 }
             } catch (\Exception $e) {
                 Log::error('Order notification failed: ' . $e->getMessage());
+            }
+
+            // Send order created email to the store owner
+            try {
+                $ownerEmail = config('mail.owner_email') ?? env('OWNER_EMAIL');
+                if ($ownerEmail) {
+                    Notification::route('mail', $ownerEmail)
+                        ->notify(new OwnerOrderCreatedNotification($order));
+                } else {
+                    Log::warning('Owner email not configured. Set MAIL_OWNER_EMAIL or OWNER_EMAIL env.');
+                }
+            } catch (\Exception $e) {
+                Log::error('Owner order notification failed: ' . $e->getMessage());
             }
 
             return response()->json([
