@@ -31,11 +31,11 @@ class OrderCreatedNotification extends Notification
         $trackingUrl = rtrim($frontend, '/') . '/order/' . $trackingRef;
 
         return (new MailMessage)
-            ->subject('Your order has been placed')
-            ->greeting('Hello ' . ($notifiable->name ?? ''))
-                ->line('Thank you for your order. Your order reference is: ' . ($this->order->reference_number ?? $this->order->order_number ?? $this->order->id))
-            ->line('You can track your order status and details by clicking the button below:')
-            ->action('Track Order', $trackingUrl)
-            ->line('If you have any questions, reply to this email.');
+            ->subject('تم استلام طلبك بنجاح')
+            ->greeting('مرحباً ' . ($notifiable->name ?? ''))
+            ->line('شكراً لتسوقك معنا. رقم مرجع طلبك: ' . ($this->order->reference_number ?? $this->order->order_number ?? $this->order->id))
+            ->line('يمكنك متابعة حالة الطلب والتفاصيل عبر الرابط التالي:')
+            ->action('تتبع الطلب', $trackingUrl)
+            ->line('لأي استفسار، يرجى الرد على هذه الرسالة.');
     }
 }

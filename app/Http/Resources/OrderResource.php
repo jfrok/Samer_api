@@ -23,6 +23,7 @@ class OrderResource extends JsonResource
             'discount_amount' => $this->discount_amount ?? 0,
             'payment_method' => $this->payment_method,
             'payment_status' => $this->payment_status,
+            'phone' => $this->phone,
             'tracking_number' => $this->tracking_number,
             'notes' => $this->notes,
             'created_at' => $this->created_at,

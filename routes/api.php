@@ -11,6 +11,7 @@ use App\Http\Controllers\API\AddressController;
 use App\Http\Controllers\API\ReviewController;
 use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\PackageDealController;
+use App\Http\Controllers\API\SettingsController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 
@@ -50,21 +51,27 @@ Route::get('/orders/ref/{reference}', [OrderController::class, 'publicShowByRefe
 // Cart routes - allow guest usage
 Route::post('/cart/add', [CartController::class, 'add']);
 Route::get('/cart', [CartController::class, 'index']);
-// Admin routes (for now without authentication - add auth middleware later)
-Route::prefix('admin')->group(function () {
-    Route::apiResource('products', ProductController::class);
-    Route::apiResource('categories', CategoryController::class)->except(['show']);
-    Route::get('/dashboard/stats', [ProductController::class, 'dashboardStats']);
 
-    // Orders admin routes
-    Route::get('/orders', [OrderController::class, 'adminIndex']);
-    Route::get('/orders/{order}', [OrderController::class, 'adminShow']);
-    Route::patch('/orders/{order}', [OrderController::class, 'adminUpdate']);
+// Admin routes (protected by authentication)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('admin')->group(function () {
+        Route::apiResource('products', ProductController::class);
+        Route::apiResource('categories', CategoryController::class)->except(['show']);
+        Route::get('/dashboard/stats', [ProductController::class, 'dashboardStats']);
 
-    // Package deals admin routes
-    Route::apiResource('packages', PackageDealController::class)->except(['index', 'show']);
+        // Orders admin routes
+        Route::get('/orders', [OrderController::class, 'adminIndex']);
+        Route::get('/orders/{order}', [OrderController::class, 'adminShow']);
+        Route::patch('/orders/{order}', [OrderController::class, 'adminUpdate']);
+
+        // Package deals admin routes
+        Route::apiResource('packages', PackageDealController::class)->except(['index', 'show']);
+
+        // Settings admin routes
+        Route::apiResource('settings', SettingsController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
+        Route::post('/settings/bulk-update', [SettingsController::class, 'bulkUpdate']);
+    });
 });
-// Auth protected
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
