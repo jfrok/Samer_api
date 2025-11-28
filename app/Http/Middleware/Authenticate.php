@@ -12,6 +12,12 @@ class Authenticate extends Middleware
      */
     protected function redirectTo(Request $request): ?string
     {
-        return $request->expectsJson() ? null : route('login');
+        // For API / SPA backend usage, avoid referencing a non-existent named route.
+        // If the client expects JSON, return null (standard 401). Otherwise return a plain path.
+        if ($request->expectsJson()) {
+            return null;
+        }
+        // Return a fixed path rather than a named route to prevent RouteNotFoundException.
+        return '/login';
     }
 }
