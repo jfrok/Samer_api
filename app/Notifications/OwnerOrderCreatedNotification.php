@@ -23,21 +23,21 @@ class OwnerOrderCreatedNotification extends Notification
         $order = $this->order->load(['user', 'items.productVariant.product', 'shippingAddress']);
 
         return (new MailMessage)
-            ->subject('New Order Created: ' . $order->order_number)
-            ->greeting('Hello Store Owner,')
-            ->line('A new order has been placed.')
-            ->line('Order Number: ' . $order->order_number)
-            ->line('Reference: ' . $order->reference_number)
-            ->line('Customer: ' . ($order->user?->name ?? ($order->shippingAddress?->first_name . ' ' . $order->shippingAddress?->last_name)))
-            ->line('Total Amount: ' . number_format((float) $order->total_amount, 2) . ' IQD')
-            ->line('Payment Method: ' . ucfirst($order->payment_method))
-            ->line('Status: ' . ucfirst($order->status))
-            ->line('Items:')
+            ->subject('تم إنشاء طلب جديد: ' . $order->order_number)
+            ->greeting('مرحباً بصاحب المتجر،')
+            ->line('تم تقديم طلب جديد.')
+            ->line('رقم الطلب: ' . $order->order_number)
+            ->line('رقم المرجع: ' . $order->reference_number)
+            ->line('العميل: ' . ($order->user?->name ?? ($order->shippingAddress?->first_name . ' ' . $order->shippingAddress?->last_name)))
+            ->line('إجمالي المبلغ: ' . number_format((float) $order->total_amount, 2) . ' د.ع')
+            ->line('طريقة الدفع: ' . ucfirst($order->payment_method))
+            ->line('الحالة: ' . ucfirst($order->status))
+            ->line('العناصر:')
             ->line($order->items->map(function($item) {
-                $productTitle = $item->productVariant?->product?->title ?? 'Product';
-                return '- ' . $productTitle . ' x' . $item->quantity . ' @ ' . number_format($item->price, 2) . ' IQD';
+                $productTitle = $item->productVariant?->product?->title ?? 'المنتج';
+                return '- ' . $productTitle . ' ×' . $item->quantity . ' بسعر ' . number_format($item->price, 2) . ' د.ع';
             })->implode("\n"))
-            ->action('View Order', url('/admin/orders/' . $order->id))
-            ->line('Thank you.');
+            ->action('عرض الطلب', url('/admin/orders/' . $order->id))
+            ->line('شكراً لكم.');
     }
 }
