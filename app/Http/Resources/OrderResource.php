@@ -23,7 +23,6 @@ class OrderResource extends JsonResource
             'discount_amount' => $this->discount_amount ?? 0,
             'payment_method' => $this->payment_method,
             'payment_status' => $this->payment_status,
-            'phone' => $this->phone,
             'tracking_number' => $this->tracking_number,
             'notes' => $this->notes,
             'created_at' => $this->created_at,
@@ -37,6 +36,8 @@ class OrderResource extends JsonResource
             }, null),
             'items' => $this->whenLoaded('items', function () {
                 return $this->items->map(function ($item) {
+                    $variant = $item->productVariant; // may be null if soft-deleted or missing
+                    $product = $variant?->product;
                     return [
                         'id' => $item->id,
                         'order_id' => $item->order_id,
@@ -44,34 +45,38 @@ class OrderResource extends JsonResource
                         'quantity' => $item->quantity,
                         'price' => $item->price,
                         'subtotal' => $item->subtotal,
-                        'product_variant' => [
-                            'id' => $item->productVariant->id,
-                            'product_id' => $item->productVariant->product_id,
-                            'size' => $item->productVariant->size,
-                            'color' => $item->productVariant->color,
-                            'price' => $item->productVariant->price,
-                            'product' => [
-                                'id' => $item->productVariant->product->id,
-                                'name' => $item->productVariant->product->name,
-                                'slug' => $item->productVariant->product->slug,
-                                'image_url' => $item->productVariant->product->image_url,
-                                'description' => $item->productVariant->product->description,
-                            ],
-                        ],
+                        'product_variant' => $variant ? [
+                            'id' => $variant->id,
+                            'product_id' => $variant->product_id,
+                            'size' => $variant->size,
+                            'color' => $variant->color,
+                            'price' => $variant->price,
+                            'product' => $product ? [
+                                'id' => $product->id,
+                                'name' => $product->name,
+                                'slug' => $product->slug,
+                                'image_url' => $product->image_url,
+                                'description' => $product->description,
+                            ] : null,
+                        ] : null,
                     ];
                 });
             }, []),
             'shipping_address' => $this->whenLoaded('shippingAddress', function () {
+                $addr = $this->shippingAddress;
+                if (!$addr) {
+                    return null;
+                }
                 return [
-                    'id' => $this->shippingAddress->id,
-                    'first_name' => $this->shippingAddress->first_name,
-                    'last_name' => $this->shippingAddress->last_name,
-                    'street' => $this->shippingAddress->street,
-                    'city' => $this->shippingAddress->city,
-                    'state' => $this->shippingAddress->state,
-                    'zip_code' => $this->shippingAddress->zip_code,
-                    'country' => $this->shippingAddress->country,
-                    'phone' => $this->shippingAddress->phone,
+                    'id' => $addr->id,
+                    'first_name' => $addr->first_name,
+                    'last_name' => $addr->last_name,
+                    'street' => $addr->street,
+                    'city' => $addr->city,
+                    'state' => $addr->state,
+                    'zip_code' => $addr->zip_code,
+                    'country' => $addr->country,
+                    'phone' => $addr->phone,
                 ];
             }, null),
         ];

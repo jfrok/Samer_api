@@ -27,10 +27,12 @@ class DiscountController extends Controller
 
         // If order amount is provided, check full applicability
         if ($request->has('order_amount')) {
-            if (!$discount->isApplicable($request->order_amount)) {
+            // Cast to float to avoid string/decimal comparison issues
+            $orderAmount = (float) $request->order_amount;
+            if (!$discount->isApplicable($orderAmount)) {
                 return response()->json([
                     'valid' => false,
-                    'message' => $request->order_amount < $discount->min_order_amount
+                    'message' => $orderAmount < (float) $discount->min_order_amount
                         ? "Minimum order amount of {$discount->min_order_amount} required"
                         : 'Discount limit reached'
                 ], 400);
@@ -38,7 +40,7 @@ class DiscountController extends Controller
 
             return response()->json([
                 'valid' => true,
-                'discount_amount' => $discount->calculateDiscount($request->order_amount),
+                'discount_amount' => $discount->calculateDiscount($orderAmount),
                 'type' => $discount->type,
                 'value' => $discount->value,
                 'code' => $discount->code,

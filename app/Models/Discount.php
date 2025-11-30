@@ -42,7 +42,14 @@ class Discount extends Model
     // Method to check if applicable (use in controller)
     public function isApplicable($orderAmount)
     {
-        return $this->active && $this->uses_count < $this->max_uses && $orderAmount >= $this->min_order_amount;
+        // Treat null or <=0 max_uses as unlimited
+        $withinUsageLimits = ($this->max_uses === null || $this->max_uses <= 0) || $this->uses_count < $this->max_uses;
+
+        // Numeric comparison with casting safety
+        $currentAmount = (float) $orderAmount;
+        $minRequired = (float) $this->min_order_amount;
+
+        return $withinUsageLimits && $currentAmount >= $minRequired;
     }
 
     // Calculate discount amount

@@ -156,10 +156,8 @@ class ProductController extends Controller
         // Create variants
         if (!empty($variantsData)) {
             foreach ($variantsData as $variantData) {
-                // Generate SKU if not provided
-                if (empty($variantData['sku'])) {
-                    $variantData['sku'] = $product->id . '-' . $variantData['size'] . '-' . $variantData['color'] . '-' . time();
-                }
+                // Generate unique SKU if not provided or conflict exists
+                $variantData['sku'] = $this->generateUniqueSku($product, $variantData);
                 $product->variants()->create($variantData);
             }
         }
@@ -234,8 +232,8 @@ class ProductController extends Controller
             // Get existing variant IDs from request
             $requestedVariantIds = collect($variantsData)->pluck('id')->filter()->toArray();
 
-            // Delete variants that are not in the request
-            $product->variants()->whereNotIn('id', $requestedVariantIds)->delete();
+            // Soft-delete variants that are not in the request to preserve FK integrity
+            $product->variants()->whereNotIn('id', $requestedVariantIds)->update(['deleted_at' => now()]);
 
             // Create or update variants
             foreach ($variantsData as $variantData) {
@@ -246,10 +244,8 @@ class ProductController extends Controller
                         $variant->update($variantData);
                     }
                 } else {
-                    // Create new variant
-                    if (empty($variantData['sku'])) {
-                        $variantData['sku'] = $product->id . '-' . $variantData['size'] . '-' . $variantData['color'] . '-' . time();
-                    }
+                    // Create new variant with unique SKU
+                    $variantData['sku'] = $this->generateUniqueSku($product, $variantData);
                     $product->variants()->create($variantData);
                 }
             }
@@ -263,6 +259,33 @@ class ProductController extends Controller
         ]);
 
         return new ProductResource($product);
+    }
+
+    /**
+     * Generate a unique SKU for a product variant.
+     * Normalizes size/color tokens and avoids duplicates by appending a counter.
+     */
+    private function generateUniqueSku(Product $product, array $variantData): string
+    {
+        $brand = Str::slug($product->brand ?? $product->name ?? 'prd', '-');
+        $size = Str::slug($variantData['size'] ?? 'sz', '-');
+        // Normalize color: prefer provided color string; if hex like #ff0000, strip '#'
+        $rawColor = $variantData['color'] ?? 'clr';
+        $color = Str::slug(ltrim($rawColor, '#'), '-');
+        $base = strtoupper(substr($brand, 0, 3)) . '-' . strtoupper($size) . '-' . $color;
+
+        $sku = $base;
+        $counter = 0;
+        while (\App\Models\ProductVariant::where('sku', $sku)->exists()) {
+            $counter++;
+            $sku = $base . '-' . $counter;
+            // Safety to prevent infinite loop
+            if ($counter > 100) {
+                $sku = $base . '-' . time();
+                break;
+            }
+        }
+        return $sku;
     }
 
     public function destroy(Product $product)

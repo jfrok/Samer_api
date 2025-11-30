@@ -15,8 +15,11 @@ class Order extends Model
     ];
 
     protected $casts = [
-        'total_amount' => 'decimal:2',
-        'discount_amount' => 'decimal:2',
+        'id' => 'integer',
+        'user_id' => 'integer',
+        'shipping_address_id' => 'integer',
+        'total_amount' => 'float',
+        'discount_amount' => 'float',
         'ordered_at' => 'datetime',
     ];
 

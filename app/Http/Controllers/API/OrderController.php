@@ -166,10 +166,10 @@ class OrderController extends Controller
 
         $user = Auth::user();
         $discount = null;
-
         if ($request->discount_code) {
             $discount = Discount::active()->where('code', $request->discount_code)->first();
-            if (!$discount || !$discount->isApplicable(0)) {
+            // Only validate existence now; applicability checked after computing total
+            if (!$discount) {
                 return response()->json(['error' => 'Invalid discount'], 400);
             }
         }
