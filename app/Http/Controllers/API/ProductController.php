@@ -276,11 +276,11 @@ class ProductController extends Controller
 
         $sku = $base;
         $counter = 0;
-        while (\App\Models\ProductVariant::where('sku', $sku)->exists()) {
+        // Include soft-deleted variants in uniqueness check so we never collide with a trashed row
+        while (\App\Models\ProductVariant::withTrashed()->where('sku', $sku)->exists()) {
             $counter++;
             $sku = $base . '-' . $counter;
-            // Safety to prevent infinite loop
-            if ($counter > 100) {
+            if ($counter > 100) { // Safety cap
                 $sku = $base . '-' . time();
                 break;
             }

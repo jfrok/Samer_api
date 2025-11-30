@@ -21,6 +21,7 @@ class Cart extends Model
 
     public function productVariant()
     {
-        return $this->belongsTo(ProductVariant::class);
+        // Include soft-deleted variants so cart items referencing them don't break
+        return $this->belongsTo(ProductVariant::class)->withTrashed();
     }
 }

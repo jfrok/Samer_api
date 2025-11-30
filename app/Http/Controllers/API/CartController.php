@@ -65,38 +65,27 @@ class CartController extends Controller
         $userId = $user ? $user->id : null;
         Log::info('User authentication status', ['user_id' => $userId, 'auth_check' => $user !== null]);
 
+        // Resolve product and chosen variant (with fallback to first in-stock)
+        $product = Product::findOrFail($request->product_id);
+        if ($request->product_variant_id) {
+            $variant = ProductVariant::withTrashed()->findOrFail($request->product_variant_id);
+            if ($variant->product_id !== $product->id) {
+                return response()->json(['error' => 'Variant does not belong to product'], 422);
+            }
+        } else {
+            $variant = ProductVariant::where('product_id', $product->id)
+                ->whereNull('deleted_at')
+                ->where('stock', '>', 0)
+                ->orderBy('id')
+                ->first();
+            if (!$variant) {
+                return response()->json(['error' => 'No available variants for this product'], 422);
+            }
+        }
+
         // For guests, return a response without saving to database
         if (!$userId) {
             Log::info('Processing guest cart item');
-            $product = Product::findOrFail($request->product_id);
-
-            // Get or create (and if needed restore) default variant including soft-deleted ones
-            $defaultSku = $product->id . '-default';
-            $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
-            if ($variant && $variant->trashed()) {
-                $variant->restore();
-            }
-            if (!$variant) {
-                // Use firstOrCreate pattern with explicit handling of race conditions
-                try {
-                    $variant = ProductVariant::create([
-                        'product_id' => $request->product_id,
-                        'size' => 'default',
-                        'color' => 'default',
-                        'price' => $product->price ?? 0,
-                        'stock' => 999,
-                        'sku' => $defaultSku,
-                    ]);
-                } catch (\Throwable $e) {
-                    // If duplicate key happens due to concurrent creation, fetch existing
-                    $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
-                    if ($variant && $variant->trashed()) {
-                        $variant->restore();
-                    }
-                }
-            }
-
-            // Return guest cart item format
             return response()->json([
                 'message' => 'Item added to guest cart successfully',
                 'guest_cart_item' => [
@@ -123,45 +112,8 @@ class CartController extends Controller
             ]);
         }
 
-        // If no variant specified, try to get default variant or create one
-        if (!$request->product_variant_id) {
-            Log::info('No variant specified, finding or creating default variant');
-            $product = Product::findOrFail($request->product_id);
-
-            // Find or safely create default variant including soft-deleted state
-            $defaultSku = $product->id . '-default';
-            $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
-            if ($variant && $variant->trashed()) {
-                $variant->restore();
-                Log::info('Restored soft-deleted default variant', ['variant_id' => $variant->id]);
-            }
-            if (!$variant) {
-                Log::info('Creating default variant for product', ['product_id' => $request->product_id]);
-                try {
-                    $variant = ProductVariant::create([
-                        'product_id' => $request->product_id,
-                        'size' => 'default',
-                        'color' => 'default',
-                        'price' => $product->price ?? 0,
-                        'stock' => 999, // Default stock
-                        'sku' => $defaultSku,
-                    ]);
-                    Log::info('Created variant', ['variant_id' => $variant->id]);
-                } catch (\Throwable $e) {
-                    Log::warning('Variant creation race condition or duplicate', ['sku' => $defaultSku, 'error' => $e->getMessage()]);
-                    $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
-                    if ($variant && $variant->trashed()) {
-                        $variant->restore();
-                        Log::info('Restored after duplicate error', ['variant_id' => $variant->id]);
-                    }
-                }
-            }
-
-            $variantId = $variant->id;
-        } else {
-            $variantId = $request->product_variant_id;
-            $variant = ProductVariant::findOrFail($variantId);
-        }
+        // Use resolved variant for authenticated user flows
+        $variantId = $variant->id;
 
         Log::info('Using variant', ['variant_id' => $variantId]);
 
@@ -236,7 +188,8 @@ class CartController extends Controller
             'items' => CartResource::collection($carts),
             'total_items' => $carts->sum('quantity'),
             'total_price' => $carts->sum(function($cart) {
-                return $cart->quantity * $cart->productVariant->price;
+                $variant = $cart->productVariant; // may be soft-deleted
+                return $cart->quantity * ($variant->price ?? 0);
             })
         ];
 
