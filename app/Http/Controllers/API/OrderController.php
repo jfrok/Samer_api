@@ -104,6 +104,16 @@ class OrderController extends Controller
         return new OrderResource($order);
     }
 
+    /**
+     * Soft delete an order (admin only).
+     */
+    public function adminSoftDelete(Order $order)
+    {
+        // Soft delete the order; items remain for audit and can reference the trashed order
+        $order->delete();
+        return response()->json(['message' => 'Order soft-deleted successfully']);
+    }
+
     public function show(Order $order)
     {
         if ($order->user_id !== Auth::id()) {

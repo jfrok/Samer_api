@@ -63,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders', [OrderController::class, 'adminIndex']);
         Route::get('/orders/{order}', [OrderController::class, 'adminShow']);
         Route::patch('/orders/{order}', [OrderController::class, 'adminUpdate']);
+        Route::delete('/orders/{order}', [OrderController::class, 'adminSoftDelete']);
 
         // Package deals admin routes
         Route::apiResource('packages', PackageDealController::class)->except(['index', 'show']);

@@ -290,6 +290,26 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
+        // Check if any variants are referenced in order_items
+        $variantIds = $product->variants()->withTrashed()->pluck('id');
+        $hasOrders = \DB::table('order_items')->whereIn('product_variant_id', $variantIds)->exists();
+
+        if ($hasOrders) {
+            // Safety: Do not hard-delete. Deactivate product and soft-delete non-referenced variants.
+            $product->update(['is_active' => false]);
+
+            // Soft-delete variants not referenced by orders
+            $referencedIds = \DB::table('order_items')->whereIn('product_variant_id', $variantIds)->pluck('product_variant_id')->toArray();
+            $product->variants()->whereNotIn('id', $referencedIds)->update(['deleted_at' => now()]);
+
+            return response()->json([
+                'message' => 'Product has existing orders. It was deactivated instead of deletion.',
+                'action' => 'deactivated',
+            ], 409);
+        }
+
+        // No linked orders: safe to soft-delete variants then delete product
+        $product->variants()->update(['deleted_at' => now()]);
         $product->delete();
         return response()->json(['message' => 'Product deleted successfully']);
     }

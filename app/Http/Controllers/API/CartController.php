@@ -70,17 +70,30 @@ class CartController extends Controller
             Log::info('Processing guest cart item');
             $product = Product::findOrFail($request->product_id);
 
-            // Get or create default variant
-            $variant = ProductVariant::where('product_id', $request->product_id)->first();
+            // Get or create (and if needed restore) default variant including soft-deleted ones
+            $defaultSku = $product->id . '-default';
+            $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
+            if ($variant && $variant->trashed()) {
+                $variant->restore();
+            }
             if (!$variant) {
-                $variant = ProductVariant::create([
-                    'product_id' => $request->product_id,
-                    'size' => 'default',
-                    'color' => 'default',
-                    'price' => $product->price ?? 0,
-                    'stock' => 999,
-                    'sku' => $product->id . '-default',
-                ]);
+                // Use firstOrCreate pattern with explicit handling of race conditions
+                try {
+                    $variant = ProductVariant::create([
+                        'product_id' => $request->product_id,
+                        'size' => 'default',
+                        'color' => 'default',
+                        'price' => $product->price ?? 0,
+                        'stock' => 999,
+                        'sku' => $defaultSku,
+                    ]);
+                } catch (\Throwable $e) {
+                    // If duplicate key happens due to concurrent creation, fetch existing
+                    $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
+                    if ($variant && $variant->trashed()) {
+                        $variant->restore();
+                    }
+                }
             }
 
             // Return guest cart item format
@@ -115,21 +128,33 @@ class CartController extends Controller
             Log::info('No variant specified, finding or creating default variant');
             $product = Product::findOrFail($request->product_id);
 
-            // Try to find a default variant for this product
-            $variant = ProductVariant::where('product_id', $request->product_id)->first();
-
-            // If no variant exists, create a default one
+            // Find or safely create default variant including soft-deleted state
+            $defaultSku = $product->id . '-default';
+            $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
+            if ($variant && $variant->trashed()) {
+                $variant->restore();
+                Log::info('Restored soft-deleted default variant', ['variant_id' => $variant->id]);
+            }
             if (!$variant) {
                 Log::info('Creating default variant for product', ['product_id' => $request->product_id]);
-                $variant = ProductVariant::create([
-                    'product_id' => $request->product_id,
-                    'size' => 'default',
-                    'color' => 'default',
-                    'price' => $product->price ?? 0,
-                    'stock' => 999, // Default stock
-                    'sku' => $product->id . '-default',
-                ]);
-                Log::info('Created variant', ['variant_id' => $variant->id]);
+                try {
+                    $variant = ProductVariant::create([
+                        'product_id' => $request->product_id,
+                        'size' => 'default',
+                        'color' => 'default',
+                        'price' => $product->price ?? 0,
+                        'stock' => 999, // Default stock
+                        'sku' => $defaultSku,
+                    ]);
+                    Log::info('Created variant', ['variant_id' => $variant->id]);
+                } catch (\Throwable $e) {
+                    Log::warning('Variant creation race condition or duplicate', ['sku' => $defaultSku, 'error' => $e->getMessage()]);
+                    $variant = ProductVariant::withTrashed()->where('sku', $defaultSku)->first();
+                    if ($variant && $variant->trashed()) {
+                        $variant->restore();
+                        Log::info('Restored after duplicate error', ['variant_id' => $variant->id]);
+                    }
+                }
             }
 
             $variantId = $variant->id;
