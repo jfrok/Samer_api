@@ -112,10 +112,10 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:2000',
             'category_id' => 'required|exists:categories,id',
             'brand' => 'nullable|string|max:255',
-            'base_price' => 'required|numeric|min:0',
+            'base_price' => 'required|numeric|min:0|max:1000000',
             'images' => 'nullable|array',
             'images.*' => ['string', function ($attribute, $value, $fail) {
                 // Accept either URL or base64 encoded image
@@ -127,8 +127,8 @@ class ProductController extends Controller
             'variants' => 'nullable|array',
             'variants.*.size' => 'required|string|max:50',
             'variants.*.color' => 'required|string|max:50',
-            'variants.*.price' => 'required|numeric|min:0',
-            'variants.*.stock' => 'required|integer|min:0',
+            'variants.*.price' => 'required|numeric|min:0|max:1000000',
+            'variants.*.stock' => 'required|integer|min:0|max:100000',
             'variants.*.sku' => 'nullable|string|max:100'
         ]);
 
@@ -177,10 +177,10 @@ class ProductController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:2000',
             'category_id' => 'exists:categories,id',
             'brand' => 'nullable|string|max:255',
-            'base_price' => 'numeric|min:0',
+            'base_price' => 'numeric|min:0|max:1000000',
             'images' => 'nullable|array',
             'images.*' => ['string', function ($attribute, $value, $fail) {
                 // Accept either URL or base64 encoded image
@@ -193,8 +193,8 @@ class ProductController extends Controller
             'variants.*.id' => 'nullable|integer|exists:product_variants,id',
             'variants.*.size' => 'required|string|max:50',
             'variants.*.color' => 'required|string|max:50',
-            'variants.*.price' => 'required|numeric|min:0',
-            'variants.*.stock' => 'required|integer|min:0',
+            'variants.*.price' => 'required|numeric|min:0|max:1000000',
+            'variants.*.stock' => 'required|integer|min:0|max:100000',
             'variants.*.sku' => 'nullable|string|max:100'
         ]);
 

@@ -12,6 +12,7 @@ use App\Http\Controllers\API\ReviewController;
 use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\PackageDealController;
 use App\Http\Controllers\API\SettingsController;
+use App\Http\Controllers\API\CityController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 
@@ -71,6 +72,13 @@ Route::middleware('auth:sanctum')->group(function () {
         // Settings admin routes
         Route::apiResource('settings', SettingsController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
         Route::post('/settings/bulk-update', [SettingsController::class, 'bulkUpdate']);
+
+        // Cities admin routes
+        Route::get('/cities', [CityController::class, 'index']);
+        Route::post('/cities', [CityController::class, 'store']);
+        Route::put('/cities/{city}', [CityController::class, 'update']);
+        Route::patch('/cities/{city}', [CityController::class, 'update']);
+        Route::delete('/cities/{city}', [CityController::class, 'destroy']);
     });
 });
 Route::middleware('auth:sanctum')->group(function () {

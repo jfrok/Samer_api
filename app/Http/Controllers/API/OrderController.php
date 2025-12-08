@@ -163,15 +163,20 @@ class OrderController extends Controller
     {
         $request->validate([
             'shipping_address' => 'required|array',
-            'shipping_address.firstName' => 'required|string',
-            'shipping_address.lastName' => 'required|string',
-            'shipping_address.email' => 'required|email',
-            'shipping_address.phone' => 'nullable|string',
-            'shipping_address.address' => 'required|string',
-            'shipping_address.city' => 'required|string',
-            'shipping_address.postalCode' => 'nullable|string',
+            'shipping_address.firstName' => 'required|string|max:100',
+            'shipping_address.lastName' => 'required|string|max:100',
+            'shipping_address.email' => 'required|email|max:255',
+            'shipping_address.phone' => ['nullable','string','max:20','regex:/^[0-9+\-\s()]+$/'],
+            'shipping_address.address' => 'required|string|max:255',
+            'shipping_address.city' => 'required|string|max:100',
+            'shipping_address.postalCode' => 'nullable|string|max:20',
             'payment_method' => 'required|in:card,cash',
-            'discount_code' => 'nullable|string',
+            'discount_code' => 'nullable|string|max:100',
+            'cart_items' => 'required|array|min:1',
+            'cart_items.*.product_id' => 'required|integer|exists:products,id',
+            'cart_items.*.product_variant_id' => 'nullable|integer|exists:product_variants,id',
+            'cart_items.*.quantity' => 'required|integer|min:1|max:100',
+            'cart_items.*.price' => 'required|numeric|min:0|max:1000000',
         ]);
 
         $user = Auth::user();
@@ -208,7 +213,27 @@ class OrderController extends Controller
             }
 
             $discountAmount = $discount ? $discount->calculateDiscount($total) : 0;
-            $finalTotal = $total - $discountAmount;
+            // Add city-based shipping fee if available
+            $shippingFee = 0;
+            try {
+                $cityName = $request->input('shipping_address.city');
+                if ($cityName) {
+                    $city = \App\Models\City::where('country', 'IQ')
+                        ->where('is_active', true)
+                        ->where(function($q) use ($cityName) {
+                            $q->where('name', $cityName)
+                              ->orWhere('name', 'like', $cityName);
+                        })
+                        ->first();
+                    if ($city) {
+                        $shippingFee = (float) $city->shipping_price;
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('City lookup failed: ' . $e->getMessage());
+            }
+
+            $finalTotal = ($total - $discountAmount) + $shippingFee;
 
             // Create shipping address
             $shippingAddress = \App\Models\Address::create([
