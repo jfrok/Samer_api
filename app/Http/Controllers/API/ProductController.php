@@ -112,10 +112,10 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:2000',
             'category_id' => 'required|exists:categories,id',
             'brand' => 'nullable|string|max:255',
-            'base_price' => 'required|numeric|min:0',
+            'base_price' => 'required|numeric|min:0|max:1000000',
             'images' => 'nullable|array',
             'images.*' => ['string', function ($attribute, $value, $fail) {
                 // Accept either URL or base64 encoded image
@@ -127,8 +127,8 @@ class ProductController extends Controller
             'variants' => 'nullable|array',
             'variants.*.size' => 'required|string|max:50',
             'variants.*.color' => 'required|string|max:50',
-            'variants.*.price' => 'required|numeric|min:0',
-            'variants.*.stock' => 'required|integer|min:0',
+            'variants.*.price' => 'required|numeric|min:0|max:1000000',
+            'variants.*.stock' => 'required|integer|min:0|max:100000',
             'variants.*.sku' => 'nullable|string|max:100'
         ]);
 
@@ -156,10 +156,8 @@ class ProductController extends Controller
         // Create variants
         if (!empty($variantsData)) {
             foreach ($variantsData as $variantData) {
-                // Generate SKU if not provided
-                if (empty($variantData['sku'])) {
-                    $variantData['sku'] = $product->id . '-' . $variantData['size'] . '-' . $variantData['color'] . '-' . time();
-                }
+                // Generate unique SKU if not provided or conflict exists
+                $variantData['sku'] = $this->generateUniqueSku($product, $variantData);
                 $product->variants()->create($variantData);
             }
         }
@@ -179,10 +177,10 @@ class ProductController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:2000',
             'category_id' => 'exists:categories,id',
             'brand' => 'nullable|string|max:255',
-            'base_price' => 'numeric|min:0',
+            'base_price' => 'numeric|min:0|max:1000000',
             'images' => 'nullable|array',
             'images.*' => ['string', function ($attribute, $value, $fail) {
                 // Accept either URL or base64 encoded image
@@ -195,8 +193,8 @@ class ProductController extends Controller
             'variants.*.id' => 'nullable|integer|exists:product_variants,id',
             'variants.*.size' => 'required|string|max:50',
             'variants.*.color' => 'required|string|max:50',
-            'variants.*.price' => 'required|numeric|min:0',
-            'variants.*.stock' => 'required|integer|min:0',
+            'variants.*.price' => 'required|numeric|min:0|max:1000000',
+            'variants.*.stock' => 'required|integer|min:0|max:100000',
             'variants.*.sku' => 'nullable|string|max:100'
         ]);
 
@@ -234,8 +232,8 @@ class ProductController extends Controller
             // Get existing variant IDs from request
             $requestedVariantIds = collect($variantsData)->pluck('id')->filter()->toArray();
 
-            // Delete variants that are not in the request
-            $product->variants()->whereNotIn('id', $requestedVariantIds)->delete();
+            // Soft-delete variants that are not in the request to preserve FK integrity
+            $product->variants()->whereNotIn('id', $requestedVariantIds)->update(['deleted_at' => now()]);
 
             // Create or update variants
             foreach ($variantsData as $variantData) {
@@ -246,10 +244,8 @@ class ProductController extends Controller
                         $variant->update($variantData);
                     }
                 } else {
-                    // Create new variant
-                    if (empty($variantData['sku'])) {
-                        $variantData['sku'] = $product->id . '-' . $variantData['size'] . '-' . $variantData['color'] . '-' . time();
-                    }
+                    // Create new variant with unique SKU
+                    $variantData['sku'] = $this->generateUniqueSku($product, $variantData);
                     $product->variants()->create($variantData);
                 }
             }
@@ -265,8 +261,55 @@ class ProductController extends Controller
         return new ProductResource($product);
     }
 
+    /**
+     * Generate a unique SKU for a product variant.
+     * Normalizes size/color tokens and avoids duplicates by appending a counter.
+     */
+    private function generateUniqueSku(Product $product, array $variantData): string
+    {
+        $brand = Str::slug($product->brand ?? $product->name ?? 'prd', '-');
+        $size = Str::slug($variantData['size'] ?? 'sz', '-');
+        // Normalize color: prefer provided color string; if hex like #ff0000, strip '#'
+        $rawColor = $variantData['color'] ?? 'clr';
+        $color = Str::slug(ltrim($rawColor, '#'), '-');
+        $base = strtoupper(substr($brand, 0, 3)) . '-' . strtoupper($size) . '-' . $color;
+
+        $sku = $base;
+        $counter = 0;
+        // Include soft-deleted variants in uniqueness check so we never collide with a trashed row
+        while (\App\Models\ProductVariant::withTrashed()->where('sku', $sku)->exists()) {
+            $counter++;
+            $sku = $base . '-' . $counter;
+            if ($counter > 100) { // Safety cap
+                $sku = $base . '-' . time();
+                break;
+            }
+        }
+        return $sku;
+    }
+
     public function destroy(Product $product)
     {
+        // Check if any variants are referenced in order_items
+        $variantIds = $product->variants()->withTrashed()->pluck('id');
+        $hasOrders = \DB::table('order_items')->whereIn('product_variant_id', $variantIds)->exists();
+
+        if ($hasOrders) {
+            // Safety: Do not hard-delete. Deactivate product and soft-delete non-referenced variants.
+            $product->update(['is_active' => false]);
+
+            // Soft-delete variants not referenced by orders
+            $referencedIds = \DB::table('order_items')->whereIn('product_variant_id', $variantIds)->pluck('product_variant_id')->toArray();
+            $product->variants()->whereNotIn('id', $referencedIds)->update(['deleted_at' => now()]);
+
+            return response()->json([
+                'message' => 'Product has existing orders. It was deactivated instead of deletion.',
+                'action' => 'deactivated',
+            ], 409);
+        }
+
+        // No linked orders: safe to soft-delete variants then delete product
+        $product->variants()->update(['deleted_at' => now()]);
         $product->delete();
         return response()->json(['message' => 'Product deleted successfully']);
     }
@@ -288,6 +331,33 @@ class ProductController extends Controller
             'total_categories' => $totalCategories,
             'recent_products' => ProductResource::collection($recentProducts)
         ]);
+    }
+
+    /**
+     * Return latest active products with optional limit (default 8).
+     */
+    public function latest(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'limit' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => 'Invalid parameters',
+                'details' => $validator->errors()
+            ], 422);
+        }
+
+        $limit = (int)($request->get('limit', 8));
+
+        $products = Product::active()
+            ->with(['category', 'variants' => function ($q) { $q->inStock(); }])
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+
+        return ProductResource::collection($products);
     }
 
     // Helper: Get category IDs including sub-categories from cache (or DB fallback)

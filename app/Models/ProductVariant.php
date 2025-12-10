@@ -4,15 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProductVariant extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = ['product_id', 'size', 'color', 'price', 'stock', 'sku'];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'id' => 'integer',
+        'product_id' => 'integer',
+        'price' => 'float',
         'stock' => 'integer',
     ];
     public function scopeInStock($query)

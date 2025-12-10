@@ -17,11 +17,12 @@ class ProductResource extends JsonResource
         }, collect());
 
         return [
-            'id' => $this->id,
+            'id' => (int) $this->id,
             'name' => $this->name,
             'description' => $this->description,
             'brand' => $this->brand,
-            'base_price' => $this->base_price,
+            // Ensure numeric JSON types
+            'base_price' => (float) $this->base_price,
             'images' => $this->images,
             'slug' => $this->slug,
             'is_active' => $this->is_active,

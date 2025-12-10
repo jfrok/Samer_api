@@ -12,6 +12,7 @@ use App\Http\Controllers\API\ReviewController;
 use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\PackageDealController;
 use App\Http\Controllers\API\SettingsController;
+use App\Http\Controllers\API\CityController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 
@@ -28,6 +29,10 @@ Route::post('/reset-password', [NewPasswordController::class, 'store']);
 // Product routes with rate limiting for search (60 requests per minute)
 Route::middleware('throttle:60,1')->group(function () {
     Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/latest', [ProductController::class, 'latest']);
+    // Google OAuth
+    Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect']);
+    Route::get('/auth/google/callback', [AuthController::class, 'googleCallback']);
 });
 Route::get('/products/{slug}', [ProductController::class, 'show']);
 
@@ -63,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders', [OrderController::class, 'adminIndex']);
         Route::get('/orders/{order}', [OrderController::class, 'adminShow']);
         Route::patch('/orders/{order}', [OrderController::class, 'adminUpdate']);
+        Route::delete('/orders/{order}', [OrderController::class, 'adminSoftDelete']);
 
         // Package deals admin routes
         Route::apiResource('packages', PackageDealController::class)->except(['index', 'show']);
@@ -70,6 +76,13 @@ Route::middleware('auth:sanctum')->group(function () {
         // Settings admin routes
         Route::apiResource('settings', SettingsController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
         Route::post('/settings/bulk-update', [SettingsController::class, 'bulkUpdate']);
+
+        // Cities admin routes
+        Route::get('/cities', [CityController::class, 'index']);
+        Route::post('/cities', [CityController::class, 'store']);
+        Route::put('/cities/{city}', [CityController::class, 'update']);
+        Route::patch('/cities/{city}', [CityController::class, 'update']);
+        Route::delete('/cities/{city}', [CityController::class, 'destroy']);
     });
 });
 Route::middleware('auth:sanctum')->group(function () {

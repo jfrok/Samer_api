@@ -13,7 +13,11 @@ class Address extends Model
         'user_id', 'type', 'street', 'city', 'state', 'country', 'zip_code', 'is_default'
     ];
 
-    protected $casts = ['is_default' => 'boolean'];
+    protected $casts = [
+        'id' => 'integer',
+        'user_id' => 'integer',
+        'is_default' => 'boolean',
+    ];
 
     // Relationships
     public function user()
