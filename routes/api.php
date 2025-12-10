@@ -29,6 +29,10 @@ Route::post('/reset-password', [NewPasswordController::class, 'store']);
 // Product routes with rate limiting for search (60 requests per minute)
 Route::middleware('throttle:60,1')->group(function () {
     Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/latest', [ProductController::class, 'latest']);
+    // Google OAuth
+    Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect']);
+    Route::get('/auth/google/callback', [AuthController::class, 'googleCallback']);
 });
 Route::get('/products/{slug}', [ProductController::class, 'show']);
 

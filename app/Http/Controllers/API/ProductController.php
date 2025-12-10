@@ -333,6 +333,33 @@ class ProductController extends Controller
         ]);
     }
 
+    /**
+     * Return latest active products with optional limit (default 8).
+     */
+    public function latest(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'limit' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'error' => 'Invalid parameters',
+                'details' => $validator->errors()
+            ], 422);
+        }
+
+        $limit = (int)($request->get('limit', 8));
+
+        $products = Product::active()
+            ->with(['category', 'variants' => function ($q) { $q->inStock(); }])
+            ->orderBy('created_at', 'desc')
+            ->limit($limit)
+            ->get();
+
+        return ProductResource::collection($products);
+    }
+
     // Helper: Get category IDs including sub-categories from cache (or DB fallback)
     private function getCategoryIds($categoryId)
     {
