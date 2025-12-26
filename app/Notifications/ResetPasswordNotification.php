@@ -6,6 +6,8 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PasswordResetMail;
 
 class ResetPasswordNotification extends Notification
 {
@@ -57,14 +59,19 @@ class ResetPasswordNotification extends Notification
     {
         $url = $this->resetUrl($notifiable);
 
+        $user = [
+            'name' => $notifiable->name,
+            'email' => $notifiable->email
+        ];
+
+        // Use our custom PasswordResetMail class with Mailgun
+        Mail::to($notifiable->email)->send(new PasswordResetMail($user, $url, $this->token));
+
+        // Return a dummy MailMessage to satisfy the interface
+        // The actual email is sent above using our custom mail class
         return (new MailMessage)
-            ->subject('إعادة تعيين كلمة المرور')
-            ->greeting('مرحباً!')
-            ->line('أنت تتلقى هذا البريد الإلكتروني لأننا تلقينا طلب إعادة تعيين كلمة المرور لحسابك.')
-            ->action('إعادة تعيين كلمة المرور', $url)
-            ->line('ستنتهي صلاحية رابط إعادة تعيين كلمة المرور هذا خلال ' . config('auth.passwords.users.expire') . ' دقيقة.')
-            ->line('إذا لم تطلب إعادة تعيين كلمة المرور، فلا داعي لاتخاذ أي إجراء.')
-            ->salutation('مع أطيب التحيات، فريق ' . config('app.name'));
+            ->subject('Password Reset Request')
+            ->line('Password reset email sent via Mailgun.');
     }
 
     /**
