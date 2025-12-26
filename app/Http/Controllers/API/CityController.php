@@ -9,6 +9,19 @@ use Illuminate\Support\Facades\Validator;
 
 class CityController extends Controller
 {
+    /**
+     * Public endpoint for active cities (for checkout/shipping)
+     */
+    public function publicIndex()
+    {
+        $cities = City::where('is_active', true)
+            ->orderBy('name')
+            ->select(['id', 'name', 'label', 'shipping_price'])
+            ->get();
+
+        return response()->json(['data' => $cities]);
+    }
+
     public function index(Request $request)
     {
         $query = City::query()->orderBy('name');

@@ -20,9 +20,10 @@ class OrderController extends Controller
 {
     public function __construct()
     {
-        // Only apply auth to user methods, not admin methods
+        // Only apply auth to user methods that require authentication
         // Admin methods are protected by route middleware in api.php
-        $this->middleware('auth:sanctum')->only(['index', 'show', 'showByReference', 'store']);
+        // store method now supports both authenticated and guest users
+        $this->middleware('auth:sanctum')->only(['index', 'show', 'showByReference']);
     }
 
     public function index()
@@ -179,7 +180,9 @@ class OrderController extends Controller
             'cart_items.*.price' => 'required|numeric|min:0|max:1000000',
         ]);
 
-        $user = Auth::user();
+        $user = Auth::user(); // Will be null for guest users
+        $isGuest = !$user;
+
         $discount = null;
         if ($request->discount_code) {
             $discount = Discount::active()->where('code', $request->discount_code)->first();
@@ -235,26 +238,26 @@ class OrderController extends Controller
 
             $finalTotal = ($total - $discountAmount) + $shippingFee;
 
-            // Create shipping address
+            // Create shipping address (user_id is null for guest orders)
             $shippingAddress = \App\Models\Address::create([
-                'user_id' => $user->id,
-                'first_name' => $request->input('shipping_address.firstName'),
-                'last_name' => $request->input('shipping_address.lastName'),
+                'user_id' => $user?->id, // null for guest users
                 'street' => $request->input('shipping_address.address'),
                 'city' => $request->input('shipping_address.city'),
                 'state' => $request->input('shipping_address.city'), // Use city as state for now
                 'zip_code' => $request->input('shipping_address.postalCode', '00000'),
                 'country' => 'IQ', // Default to Iraq
-                'phone' => $request->input('shipping_address.phone', ''),
                 'is_default' => false,
             ]);
 
-            // Extract phone for order record; do not modify users table
+            // Extract customer details for order record
+            $firstName = $request->input('shipping_address.firstName');
+            $lastName = $request->input('shipping_address.lastName');
+            $email = $request->input('shipping_address.email');
             $phone = $request->input('shipping_address.phone');
 
-            // Create order
+            // Create order (user_id is null for guest orders)
             $order = Order::create([
-                'user_id' => $user->id,
+                'user_id' => $user?->id, // null for guest users
                 'order_number' => 'ORD-' . strtoupper(uniqid()),
                 'reference_number' => 'REF-' . now()->format('Ymd') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT),
                 'status' => $request->payment_method === 'cash' ? 'pending' : 'processing',
@@ -264,6 +267,10 @@ class OrderController extends Controller
                 'phone' => $phone,
                 'payment_method' => $request->payment_method,
                 'payment_status' => $request->payment_method === 'cash' ? 'pending' : 'paid',
+                // Store customer details for guest orders
+                'customer_first_name' => $firstName,
+                'customer_last_name' => $lastName,
+                'customer_email' => $email,
             ]);
 
             // Create order items

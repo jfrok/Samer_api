@@ -178,6 +178,12 @@ Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
 
 // Package deals routes
 Route::get('/packages', [PackageDealController::class, 'index']);
+
+// Public cities routes for shipping calculation
+Route::get('/cities', [CityController::class, 'publicIndex']);
+
+// Page content routes
+Route::get('/page-content/{pageKey}', [App\Http\Controllers\API\PageContentController::class, 'show']);
 Route::get('/packages/featured', [PackageDealController::class, 'featured']);
 Route::get('/packages/{slug}', [PackageDealController::class, 'show']);
 
@@ -187,6 +193,9 @@ Route::get('/orders/ref/{reference}', [OrderController::class, 'publicShowByRefe
 // Cart routes - allow guest usage
 Route::post('/cart/add', [CartController::class, 'add']);
 Route::get('/cart', [CartController::class, 'index']);
+
+// Order creation - allow guest checkout
+Route::post('/orders', [OrderController::class, 'store']);
 
 // Admin routes (protected by authentication)
 Route::middleware('auth:sanctum')->group(function () {
@@ -229,7 +238,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/profile', [ProfileController::class, 'destroy']);
     });
 
-    Route::apiResource('orders', OrderController::class)->only(['index', 'show', 'store']);
+    // Page content management for admin users
+    Route::put('/page-content/{pageKey}', [App\Http\Controllers\API\PageContentController::class, 'update']);
+
+    Route::apiResource('orders', OrderController::class)->only(['index', 'show']);
     // Secure endpoint to fetch order by reference number (safer than exposing DB id)
     Route::get('/orders/ref/{reference}', [OrderController::class, 'showByReference']);
     Route::apiResource('addresses', AddressController::class);
