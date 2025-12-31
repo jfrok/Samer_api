@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
@@ -141,7 +143,7 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out'])->withCookie($clearCookie);
     }
 
-    // Generic OAuth token exchange (optional)
+    // Generic OAuth token exchange (updated to handle Google OAuth properly)
     public function handleOAuthCallback(Request $request)
     {
         $request->validate([
@@ -149,38 +151,127 @@ class AuthController extends Controller
             'access_token' => 'required|string',
         ]);
 
+        Log::info('OAuth callback received', [
+            'provider' => $request->provider,
+            'has_token' => !empty($request->access_token),
+            'token_length' => strlen($request->access_token),
+        ]);
+
         try {
             $provider = $request->provider;
-            $providerUser = Socialite::driver($provider)->userFromToken($request->access_token);
+            $accessToken = $request->access_token;
 
-            $user = User::where('email', $providerUser->getEmail())->first();
-            if (!$user) {
-                $user = User::create([
-                    'name' => $providerUser->getName() ?? $providerUser->getNickname() ?? 'User',
-                    'email' => $providerUser->getEmail(),
-                    'password' => Hash::make(Str::random(32)),
-                    'email_verified_at' => now(),
-                    'provider' => $provider,
-                    'provider_id' => $providerUser->getId(),
+            if ($provider === 'google') {
+                Log::info('Fetching Google user info', ['token_prefix' => substr($accessToken, 0, 20) . '...']);
+
+                // Manually fetch Google user info using access token
+                $userResponse = Http::timeout(10)->withHeaders([
+                    'Authorization' => 'Bearer ' . $accessToken,
+                ])->get('https://www.googleapis.com/oauth2/v3/userinfo');
+
+                Log::info('Google API response', [
+                    'status' => $userResponse->status(),
+                    'successful' => $userResponse->successful(),
+                    'response_time' => now()->toISOString(),
                 ]);
+
+                if (!$userResponse->successful()) {
+                    Log::error('Google user info fetch failed', [
+                        'status' => $userResponse->status(),
+                        'response' => $userResponse->json()
+                    ]);
+                    throw new \Exception('Failed to fetch Google user information');
+                }
+
+                $googleUser = $userResponse->json();
+
+                // Find or create user
+                $user = User::where('google_id', $googleUser['sub'])
+                    ->orWhere('email', $googleUser['email'])
+                    ->first();
+
+                if (!$user) {
+                    // Generate unique username from Google data
+                    $baseName = $googleUser['name'] ?? explode('@', $googleUser['email'])[0] ?? 'user';
+                    $base = Str::slug($baseName, '-');
+                    $username = $this->generateUniqueUsername($base);
+
+                    $user = User::create([
+                        'name' => $googleUser['name'] ?? $username,
+                        'email' => $googleUser['email'],
+                        'password' => Hash::make(Str::random(32)),
+                        'google_id' => $googleUser['sub'],
+                        'email_verified_at' => now(),
+                        'phone' => null,
+                    ]);
+                } else {
+                    // Update existing user with Google data
+                    $user->update([
+                        'google_id' => $googleUser['sub'],
+                        'name' => $googleUser['name'] ?? $user->name,
+                        'email_verified_at' => $user->email_verified_at ?? now(),
+                    ]);
+                }
             } else {
-                $user->update([
-                    'provider' => $provider,
-                    'provider_id' => $providerUser->getId(),
-                ]);
+                // Handle other providers (Facebook, etc.) with Socialite
+                $providerUser = Socialite::driver($provider)->userFromToken($accessToken);
+
+                $user = User::where('email', $providerUser->getEmail())->first();
+                if (!$user) {
+                    $user = User::create([
+                        'name' => $providerUser->getName() ?? $providerUser->getNickname() ?? 'User',
+                        'email' => $providerUser->getEmail(),
+                        'password' => Hash::make(Str::random(32)),
+                        'email_verified_at' => now(),
+                        'provider' => $provider,
+                        'provider_id' => $providerUser->getId(),
+                    ]);
+                } else {
+                    $user->update([
+                        'provider' => $provider,
+                        'provider_id' => $providerUser->getId(),
+                    ]);
+                }
             }
 
             $token = $user->createToken('auth_token')->plainTextToken;
             return response()->json([
+                'success' => true,
                 'token' => $token,
-                'user' => $user,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'email_verified_at' => $user->email_verified_at,
+                ],
                 'message' => 'Successfully authenticated with ' . ucfirst($provider)
             ], 200);
         } catch (\Exception $e) {
+            Log::error('OAuth Error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
-                'message' => 'Failed to authenticate with OAuth provider',
-                'error' => $e->getMessage()
-            ], 400);
+                'success' => false,
+                'error' => 'Authentication failed: ' . $e->getMessage(),
+            ], 500);
         }
+    }
+
+    /**
+     * Generate a unique username from a base string
+     */
+    public function generateUniqueUsername($base, $counter = 0)
+    {
+        $username = $counter === 0 ? $base : $base . $counter;
+
+        // Check if username already exists
+        if (User::where('name', $username)->exists()) {
+            return $this->generateUniqueUsername($base, $counter + 1);
+        }
+
+        return $username;
     }
 }

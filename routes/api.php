@@ -13,10 +13,7 @@ use App\Http\Controllers\API\ReviewController;
 use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\PackageDealController;
 use App\Http\Controllers\API\SettingsController;
-use App\Http\Controllers\API\CityController;
-use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\NewPasswordController;
-use App\Http\Controllers\API\MailController;
+use App\Http\Controllers\API\LikedProductController;
 
 // Create test user route (for development only)
 Route::post('/create-test-user', function () {
@@ -261,4 +258,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/reviews/{id}', [ReviewController::class, 'update']);
         Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
     });
+
+    // Liked products routes
+    Route::get('/liked-products', [LikedProductController::class, 'index']);
+    Route::post('/products/{productId}/like', [LikedProductController::class, 'store']);
+    Route::delete('/products/{productId}/like', [LikedProductController::class, 'destroy']);
+    Route::get('/products/{productId}/is-liked', [LikedProductController::class, 'check']);
 });

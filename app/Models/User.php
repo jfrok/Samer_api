@@ -12,7 +12,7 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'phone', 'role', 'provider', 'provider_id', 'email_verified_at',
+        'name', 'email', 'password', 'phone', 'role', 'provider', 'provider_id', 'google_id', 'email_verified_at',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -55,5 +55,10 @@ class User extends Authenticatable
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function likedProducts()
+    {
+        return $this->belongsToMany(Product::class, 'user_liked_products')->withTimestamps();
     }
 }
