@@ -48,4 +48,9 @@ class Product extends Model
     {
         return $this->hasMany(ProductVariant::class);
     }
+
+    public function likedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_liked_products')->withTimestamps();
+    }
 }

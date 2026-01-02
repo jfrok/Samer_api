@@ -13,10 +13,7 @@ use App\Http\Controllers\API\ReviewController;
 use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\PackageDealController;
 use App\Http\Controllers\API\SettingsController;
-use App\Http\Controllers\API\CityController;
-use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\NewPasswordController;
-use App\Http\Controllers\API\MailController;
+use App\Http\Controllers\API\LikedProductController;
 
 // Create test user route (for development only)
 Route::post('/create-test-user', function () {
@@ -164,6 +161,9 @@ Route::middleware('throttle:60,1')->group(function () {
     // Google OAuth
     Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect']);
     Route::get('/auth/google/callback', [AuthController::class, 'googleCallback']);
+    // Facebook OAuth
+    Route::get('/auth/facebook/redirect', [AuthController::class, 'facebookRedirect']);
+    Route::get('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
 });
 Route::get('/products/{slug}', [ProductController::class, 'show']);
 
@@ -261,4 +261,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/reviews/{id}', [ReviewController::class, 'update']);
         Route::delete('/reviews/{id}', [ReviewController::class, 'destroy']);
     });
+
+    // Liked products routes
+    Route::get('/liked-products', [LikedProductController::class, 'index']);
+    Route::post('/products/{productId}/like', [LikedProductController::class, 'store']);
+    Route::delete('/products/{productId}/like', [LikedProductController::class, 'destroy']);
+    Route::get('/products/{productId}/is-liked', [LikedProductController::class, 'check']);
 });
