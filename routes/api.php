@@ -161,6 +161,9 @@ Route::middleware('throttle:60,1')->group(function () {
     // Google OAuth
     Route::get('/auth/google/redirect', [AuthController::class, 'googleRedirect']);
     Route::get('/auth/google/callback', [AuthController::class, 'googleCallback']);
+    // Facebook OAuth
+    Route::get('/auth/facebook/redirect', [AuthController::class, 'facebookRedirect']);
+    Route::get('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
 });
 Route::get('/products/{slug}', [ProductController::class, 'show']);
 

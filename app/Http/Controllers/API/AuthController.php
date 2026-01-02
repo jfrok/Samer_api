@@ -21,6 +21,12 @@ class AuthController extends Controller
         return Socialite::driver('google')->stateless()->redirect();
     }
 
+    // Facebook OAuth: redirect to provider
+    public function facebookRedirect()
+    {
+        return Socialite::driver('facebook')->stateless()->redirect();
+    }
+
     // Google OAuth: handle callback
     public function googleCallback(Request $request)
     {
@@ -65,6 +71,53 @@ class AuthController extends Controller
             return redirect($redirectUrl)->withCookie($cookie);
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Google OAuth failed', 'error' => $e->getMessage()], 400);
+        }
+    }
+
+    // Facebook OAuth: handle callback
+    public function facebookCallback(Request $request)
+    {
+        try {
+            $facebookUser = Socialite::driver('facebook')->stateless()->user();
+
+            $user = User::where('email', $facebookUser->getEmail())->first();
+            if (!$user) {
+                $user = User::create([
+                    'name' => $facebookUser->getName() ?? $facebookUser->getNickname() ?? 'Facebook User',
+                    'email' => $facebookUser->getEmail(),
+                    'password' => Hash::make(Str::random(32)),
+                    'facebook_id' => $facebookUser->getId(),
+                    'email_verified_at' => now(),
+                ]);
+            } else {
+                $user->update([
+                    'facebook_id' => $facebookUser->getId(),
+                    'name' => $facebookUser->getName() ?? $user->name,
+                ]);
+            }
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            // Set HTTP-only cookie for session token (API domain)
+            $cookieName = 'auth_token';
+            $minutes = 60 * 24 * 7; // 7 days
+            $cookie = cookie(
+                $cookieName,
+                $token,
+                $minutes,
+                null,
+                null,
+                false, // secure: set true on HTTPS
+                true,  // httpOnly
+                false, // raw
+                'Lax'  // sameSite
+            );
+
+            $frontendUrl = config('services.frontend.url', env('FRONTEND_URL', 'http://localhost:3000'));
+            $redirectUrl = $frontendUrl . '/auth/callback';
+            return redirect($redirectUrl)->withCookie($cookie);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Facebook OAuth failed', 'error' => $e->getMessage()], 400);
         }
     }
 
@@ -223,13 +276,12 @@ class AuthController extends Controller
                         'email' => $providerUser->getEmail(),
                         'password' => Hash::make(Str::random(32)),
                         'email_verified_at' => now(),
-                        'provider' => $provider,
-                        'provider_id' => $providerUser->getId(),
+                        'facebook_id' => $providerUser->getId(),
                     ]);
                 } else {
                     $user->update([
-                        'provider' => $provider,
-                        'provider_id' => $providerUser->getId(),
+                        'facebook_id' => $providerUser->getId(),
+                        'name' => $providerUser->getName() ?? $user->name,
                     ]);
                 }
             }
