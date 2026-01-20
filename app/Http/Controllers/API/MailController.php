@@ -354,3 +354,5 @@ class MailController extends Controller
     {
         $uptime = time() - $_SERVER['REQUEST_TIME_FLOAT'];
         return gmdate('H:i:s', $uptime) . ' (current request)';
+    }
+}

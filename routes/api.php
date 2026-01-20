@@ -248,6 +248,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Secure endpoint to fetch order by reference number (safer than exposing DB id)
     Route::get('/orders/ref/{reference}', [OrderController::class, 'showByReference']);
     Route::apiResource('addresses', AddressController::class);
+    Route::get('/addresses/{address}/can-delete', [AddressController::class, 'canDelete']);
 
     // Cart clear must come before cart/{id} to avoid route conflict
     Route::delete('/cart/clear', [CartController::class, 'clear']);

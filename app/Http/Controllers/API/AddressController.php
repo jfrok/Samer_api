@@ -36,6 +36,15 @@ class AddressController extends Controller
 
         $user = Auth::user();
 
+        // Check if user already has 3 addresses
+        $currentAddressCount = $user->addresses()->count();
+        if ($currentAddressCount >= 3) {
+            return response()->json([
+                'message' => 'لا يمكن إضافة أكثر من 3 عناوين. يرجى حذف عنوان قديم قبل إضافة عنوان جديد.',
+                'error' => 'Address limit exceeded'
+            ], 422);
+        }
+
         // If setting as default, unset other defaults
         if ($request->is_default) {
             $user->addresses()->update(['is_default' => false]);
@@ -91,5 +100,24 @@ class AddressController extends Controller
         $address->delete();
 
         return response()->json(['message' => 'Address deleted successfully']);
+    }
+
+    public function canDelete(Address $address)
+    {
+        if ($address->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        // Check if address is used in any orders
+        $isUsedInOrders = \DB::table('orders')
+            ->where('shipping_address_id', $address->id)
+            ->exists();
+
+        return response()->json([
+            'can_delete' => !$isUsedInOrders,
+            'message' => $isUsedInOrders ?
+                'لا يمكن حذف هذا العنوان لأنه مستخدم في طلبات سابقة' :
+                null
+        ]);
     }
 }
