@@ -24,12 +24,13 @@ class AddressController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'name' => 'nullable|string|max:100',
             'type' => 'required|in:shipping,billing',
             'street' => 'required|string|max:255',
+            'closest_point' => 'nullable|string|max:500',
             'city' => 'required|string|max:100',
             'state' => 'required|string|max:100',
             'country' => 'required|string|max:100',
-            'zip_code' => 'required|string|max:20',
             'is_default' => 'boolean',
         ]);
 
@@ -61,12 +62,13 @@ class AddressController extends Controller
         }
 
         $request->validate([
+            'name' => 'sometimes|nullable|string|max:100',
             'type' => 'sometimes|in:shipping,billing',
             'street' => 'sometimes|string|max:255',
+            'closest_point' => 'sometimes|nullable|string|max:500',
             'city' => 'sometimes|string|max:100',
             'state' => 'sometimes|string|max:100',
             'country' => 'sometimes|string|max:100',
-            'zip_code' => 'sometimes|string|max:20',
             'is_default' => 'boolean',
         ]);
 

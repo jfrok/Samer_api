@@ -14,6 +14,9 @@ use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\PackageDealController;
 use App\Http\Controllers\API\SettingsController;
 use App\Http\Controllers\API\LikedProductController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\API\MailController;
 
 // Create test user route (for development only)
 Route::post('/create-test-user', function () {
