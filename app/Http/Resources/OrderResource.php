@@ -69,14 +69,15 @@ class OrderResource extends JsonResource
                 }
                 return [
                     'id' => $addr->id,
-                    'first_name' => $addr->first_name,
-                    'last_name' => $addr->last_name,
+                    'first_name' => $this->customer_first_name,
+                    'last_name' => $this->customer_last_name,
+                    'email' => $this->customer_email,
                     'street' => $addr->street,
                     'city' => $addr->city,
                     'state' => $addr->state,
                     'zip_code' => $addr->zip_code,
                     'country' => $addr->country,
-                    'phone' => $addr->phone,
+                    'phone' => $this->phone,
                 ];
             }, null),
         ];

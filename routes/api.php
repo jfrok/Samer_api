@@ -14,6 +14,9 @@ use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\PackageDealController;
 use App\Http\Controllers\API\SettingsController;
 use App\Http\Controllers\API\LikedProductController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\API\MailController;
 
 // Create test user route (for development only)
 Route::post('/create-test-user', function () {
@@ -245,6 +248,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Secure endpoint to fetch order by reference number (safer than exposing DB id)
     Route::get('/orders/ref/{reference}', [OrderController::class, 'showByReference']);
     Route::apiResource('addresses', AddressController::class);
+    Route::get('/addresses/{address}/can-delete', [AddressController::class, 'canDelete']);
 
     // Cart clear must come before cart/{id} to avoid route conflict
     Route::delete('/cart/clear', [CartController::class, 'clear']);
