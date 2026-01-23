@@ -12,6 +12,13 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        // Permanently delete soft-deleted records after 30 days
+        $schedule->command('app:permanently-delete-old-records')
+            ->daily()
+            ->at('02:00') // Run at 2 AM daily
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // $schedule->command('inspire')->hourly();
     }
 
