@@ -19,6 +19,12 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground();
 
+        // Clean up expired OTP codes hourly
+        $schedule->command('app:cleanup-expired-otp-codes')
+            ->hourly()
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // $schedule->command('inspire')->hourly();
     }
 

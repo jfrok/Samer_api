@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\OtpCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -12,9 +13,17 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
+use App\Services\EmailNotificationService;
 
 class AuthController extends Controller
 {
+    protected $emailService;
+
+    public function __construct(EmailNotificationService $emailService)
+    {
+        $this->emailService = $emailService;
+    }
+
     // Google OAuth: redirect to provider
     public function googleRedirect()
     {
@@ -121,7 +130,151 @@ class AuthController extends Controller
         }
     }
 
-    // Email/password register
+    // Send OTP for registration
+    public function sendOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|max:255',
+            'language' => 'nullable|string|in:en,ar'
+        ]);
+
+        $email = $request->email;
+        $language = $request->language ?? 'ar';
+
+        // Check if user already exists
+        if (User::where('email', $email)->exists()) {
+            return response()->json([
+                'message' => $language === 'ar' ? 'البريد الإلكتروني مسجل بالفعل' : 'Email already registered',
+                'error' => 'email_exists'
+            ], 422);
+        }
+
+        try {
+            // Generate OTP
+            $otp = OtpCode::generate($email, 'registration');
+
+            // Send OTP email
+            $result = $this->emailService->sendOtpEmail($email, $otp->code, $language);
+
+            if ($result['success']) {
+                return response()->json([
+                    'message' => $language === 'ar' ? 'تم إرسال رمز التحقق إلى بريدك الإلكتروني' : 'Verification code sent to your email',
+                    'expires_in' => 600 // 10 minutes in seconds
+                ]);
+            } else {
+                return response()->json([
+                    'message' => $language === 'ar' ? 'فشل في إرسال رمز التحقق' : 'Failed to send verification code',
+                    'error' => $result['error'] ?? 'unknown_error'
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            Log::error('OTP generation failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => $language === 'ar' ? 'حدث خطأ أثناء إرسال رمز التحقق' : 'Error sending verification code',
+                'error' => 'server_error'
+            ], 500);
+        }
+    }
+
+    // Verify OTP (check only, do NOT consume the code) - used for step 2 UI validation
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|max:255',
+            'otp' => 'required|string|size:6',
+            'language' => 'nullable|string|in:en,ar'
+        ]);
+
+        $email = $request->email;
+        $otpCode = $request->otp;
+        $language = $request->language ?? 'ar';
+
+        $otp = OtpCode::where('email', $email)
+            ->where('code', $otpCode)
+            ->where('purpose', 'registration')
+            ->where('used', false)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if ($otp) {
+            return response()->json([
+                'message' => $language === 'ar' ? 'رمز التحقق صالح' : 'Verification code is valid',
+                'expires_at' => $otp->expires_at
+            ]);
+        }
+
+        return response()->json([
+            'message' => $language === 'ar' ? 'رمز التحقق غير صحيح أو منتهي الصلاحية' : 'Invalid or expired verification code',
+            'error' => 'invalid_otp'
+        ], 422);
+    }
+
+    // Verify OTP and complete registration
+    public function verifyOtpAndRegister(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|max:255',
+            'otp' => 'required|string|size:6',
+            'name' => 'required|string|max:255',
+            'password' => 'required|string|min:8|confirmed',
+            'phone' => 'nullable|string|max:20',
+            'language' => 'nullable|string|in:en,ar'
+        ]);
+
+        $email = $request->email;
+        $otp = $request->otp;
+        $language = $request->language ?? 'ar';
+
+        // Check if user already exists
+        if (User::where('email', $email)->exists()) {
+            return response()->json([
+                'message' => $language === 'ar' ? 'البريد الإلكتروني مسجل بالفعل' : 'Email already registered',
+                'error' => 'email_exists'
+            ], 422);
+        }
+
+        // Verify OTP
+        if (!OtpCode::verify($email, $otp, 'registration')) {
+            return response()->json([
+                'message' => $language === 'ar' ? 'رمز التحقق غير صحيح أو منتهي الصلاحية' : 'Invalid or expired verification code',
+                'error' => 'invalid_otp'
+            ], 422);
+        }
+
+        try {
+            // Create user
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $email,
+                'password' => Hash::make($request->password),
+                'phone' => $request->phone,
+                'email_verified_at' => now(), // Mark as verified since OTP was confirmed
+            ]);
+
+            // Clean up used OTP
+            OtpCode::where('email', $email)
+                ->where('purpose', 'registration')
+                ->where('used', true)
+                ->delete();
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'token' => $token,
+                'user' => $user,
+                'message' => $language === 'ar' ? 'تم إنشاء الحساب بنجاح' : 'Account created successfully'
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('User creation failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => $language === 'ar' ? 'فشل في إنشاء الحساب' : 'Failed to create account',
+                'error' => 'creation_failed'
+            ], 500);
+        }
+    }
+
+    // Email/password register (legacy - keep for backward compatibility)
     public function register(Request $request)
     {
         $request->validate([

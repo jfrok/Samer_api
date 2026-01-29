@@ -135,24 +135,60 @@ class EmailNotificationService
     }
 
     /**
-     * Send notification email
+     * Send OTP email for registration
      */
-    public function sendNotificationEmail(string $email, string $subject, string $message, ?array $additionalData = null): array
+    public function sendOtpEmail(string $email, string $otpCode, string $language = 'ar'): array
     {
         try {
-            Mail::raw($message, function ($mail) use ($email, $subject) {
+            $subject = $language === 'ar' ? 'رمز التحقق من متجر سامر' : 'Verification Code from Samer Store';
+
+            $body = $language === 'ar' ?
+                "مرحباً،\n\nرمز التحقق الخاص بك هو: {$otpCode}\n\nهذا الرمز صالح لمدة 10 دقائق فقط.\n\nإذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.\n\nمع خالص التحية,\nفريق متجر سامر" :
+                "Hello,\n\nYour verification code is: {$otpCode}\n\nThis code is valid for 10 minutes only.\n\nIf you did not request this code, please ignore this message.\n\nBest regards,\nSamer Store Team";
+
+            Mail::raw($body, function ($mail) use ($email, $subject) {
                 $mail->to($email)->subject($subject);
             });
 
             return [
                 'success' => true,
-                'message' => 'Notification email sent successfully'
+                'message' => $language === 'ar' ? 'تم إرسال رمز التحقق بنجاح' : 'Verification code sent successfully'
             ];
         } catch (\Exception $e) {
-            Log::error('Failed to send notification email: ' . $e->getMessage());
+            Log::error('Failed to send OTP email: ' . $e->getMessage());
             return [
                 'success' => false,
-                'message' => 'Failed to send notification email',
+                'message' => $language === 'ar' ? 'فشل في إرسال رمز التحقق' : 'Failed to send verification code',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Send OTP email for password reset
+     */
+    public function sendPasswordResetOtpEmail(string $email, string $otpCode, string $language = 'ar'): array
+    {
+        try {
+            $subject = $language === 'ar' ? 'رمز إعادة تعيين كلمة المرور' : 'Password Reset Code';
+
+            $body = $language === 'ar' ?
+                "مرحباً،\n\nرمز إعادة تعيين كلمة المرور الخاص بك هو: {$otpCode}\n\nهذا الرمز صالح لمدة 10 دقائق فقط.\n\nإذا لم تطلب إعادة التعيين، يرجى تجاهل هذه الرسالة.\n\nمع خالص التحية,\nفريق متجر سامر" :
+                "Hello,\n\nYour password reset code is: {$otpCode}\n\nThis code is valid for 10 minutes only.\n\nIf you did not request this reset, please ignore this message.\n\nBest regards,\nSamer Store Team";
+
+            Mail::raw($body, function ($mail) use ($email, $subject) {
+                $mail->to($email)->subject($subject);
+            });
+
+            return [
+                'success' => true,
+                'message' => $language === 'ar' ? 'تم إرسال رمز إعادة التعيين بنجاح' : 'Password reset code sent successfully'
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to send password reset OTP email: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $language === 'ar' ? 'فشل في إرسال رمز إعادة التعيين' : 'Failed to send password reset code',
                 'error' => $e->getMessage()
             ];
         }

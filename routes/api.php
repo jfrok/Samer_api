@@ -17,6 +17,7 @@ use App\Http\Controllers\API\LikedProductController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\API\MailController;
+use App\Http\Controllers\API\CityController;
 
 // Create test user route (for development only)
 Route::post('/create-test-user', function () {
@@ -148,7 +149,14 @@ Route::prefix('mail')->group(function () {
 });
 
 // Public routes
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/send-otp', [AuthController::class, 'sendOtp']);
+Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+Route::post('/verify-otp-register', [AuthController::class, 'verifyOtpAndRegister']);
+// Adapter routes to match frontend 3-step registration flow
+Route::post('/register/email', [AuthController::class, 'sendOtp']);
+Route::post('/register/validate-otp', [AuthController::class, 'verifyOtp']);
+Route::post('/register/complete', [AuthController::class, 'verifyOtpAndRegister']);
+Route::post('/register', [AuthController::class, 'register']); // Legacy route
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);
