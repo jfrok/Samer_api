@@ -17,6 +17,8 @@ use App\Http\Controllers\API\LikedProductController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\API\MailController;
+use App\Http\Controllers\API\CityController;
+use App\Http\Controllers\API\ClientController;
 
 // Create test user route (for development only)
 Route::post('/create-test-user', function () {
@@ -223,9 +225,34 @@ Route::middleware('auth:sanctum')->group(function () {
         // Cities admin routes
         Route::get('/cities', [CityController::class, 'index']);
         Route::post('/cities', [CityController::class, 'store']);
+        Route::get('/cities/shipping-stats', [CityController::class, 'shippingStats']);
+        Route::post('/cities/bulk-update-shipping', [CityController::class, 'bulkUpdateShippingPrices']);
         Route::put('/cities/{city}', [CityController::class, 'update']);
         Route::patch('/cities/{city}', [CityController::class, 'update']);
         Route::delete('/cities/{city}', [CityController::class, 'destroy']);
+
+        // Clients admin routes
+        Route::get('/clients', [ClientController::class, 'index']);
+        Route::get('/clients/stats', [ClientController::class, 'stats']);
+        Route::post('/clients', [ClientController::class, 'store']);
+        Route::get('/clients/{client}', [ClientController::class, 'show']);
+        Route::put('/clients/{client}', [ClientController::class, 'update']);
+        Route::patch('/clients/{client}', [ClientController::class, 'update']);
+        Route::delete('/clients/{client}', [ClientController::class, 'destroy']);
+        Route::post('/clients/{client}/restore', [ClientController::class, 'restore']);
+
+        // Discounts admin routes
+        Route::get('/discounts', [DiscountController::class, 'index']);
+        Route::get('/discounts/stats', [DiscountController::class, 'stats']);
+        Route::get('/discounts/generate-code', [DiscountController::class, 'generateCode']);
+        Route::post('/discounts', [DiscountController::class, 'store']);
+        Route::get('/discounts/{discount}', [DiscountController::class, 'show']);
+        Route::put('/discounts/{discount}', [DiscountController::class, 'update']);
+        Route::patch('/discounts/{discount}', [DiscountController::class, 'update']);
+        Route::delete('/discounts/{discount}', [DiscountController::class, 'destroy']);
+        Route::post('/discounts/{discount}/toggle-status', [DiscountController::class, 'toggleStatus']);
+        Route::post('/discounts/{discount}/reset-uses', [DiscountController::class, 'resetUses']);
+        Route::post('/discounts/{discount}/duplicate', [DiscountController::class, 'duplicate']);
     });
 });
 Route::middleware('auth:sanctum')->group(function () {

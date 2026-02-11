@@ -17,4 +17,17 @@ class City extends Model
         'shipping_price',
         'is_active',
     ];
+
+    protected $casts = [
+        'shipping_price' => 'decimal:2',
+        'is_active' => 'boolean',
+    ];
+
+    /**
+     * Scope a query to only include active cities.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 }
