@@ -19,6 +19,10 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\API\MailController;
 use App\Http\Controllers\API\CityController;
 use App\Http\Controllers\API\ClientController;
+use App\Http\Controllers\API\RoleController;
+use App\Http\Controllers\API\PermissionController;
+use App\Http\Controllers\API\UserRoleController;
+use App\Http\Controllers\API\UserController;
 
 // Create test user route (for development only)
 Route::post('/create-test-user', function () {
@@ -154,6 +158,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/admin/login', [AuthController::class, 'adminLogin']);
 Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);
+Route::match(['get', 'post'], '/checkToken/{token}', [AuthController::class, 'checkTokenByParam']);
 
 // Password reset routes
 Route::post('/forgot-password', [PasswordResetLinkController::class, 'store']);
@@ -253,14 +258,58 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/discounts/{discount}/toggle-status', [DiscountController::class, 'toggleStatus']);
         Route::post('/discounts/{discount}/reset-uses', [DiscountController::class, 'resetUses']);
         Route::post('/discounts/{discount}/duplicate', [DiscountController::class, 'duplicate']);
+
+        // Roles admin routes (super-admin and admin only)
+        Route::middleware(['role:super-admin|admin'])->group(function () {
+            Route::get('/roles', [RoleController::class, 'index']);
+            Route::post('/roles', [RoleController::class, 'store']);
+            Route::get('/roles/{role}', [RoleController::class, 'show']);
+            Route::put('/roles/{role}', [RoleController::class, 'update']);
+            Route::patch('/roles/{role}', [RoleController::class, 'update']);
+            Route::delete('/roles/{role}', [RoleController::class, 'destroy']);
+            Route::post('/roles/{role}/assign-permissions', [RoleController::class, 'assignPermissions']);
+            Route::get('/roles/{role}/users', [RoleController::class, 'users']);
+
+            // Permissions admin routes
+            Route::get('/permissions', [PermissionController::class, 'index']);
+            Route::get('/permissions/grouped', [PermissionController::class, 'grouped']);
+            Route::post('/permissions', [PermissionController::class, 'store']);
+            Route::get('/permissions/{permission}', [PermissionController::class, 'show']);
+            Route::put('/permissions/{permission}', [PermissionController::class, 'update']);
+            Route::patch('/permissions/{permission}', [PermissionController::class, 'update']);
+            Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy']);
+
+            // User roles and permissions management
+            Route::post('/users/{user}/assign-roles', [UserRoleController::class, 'assignRoles']);
+            Route::post('/users/{user}/assign-permissions', [UserRoleController::class, 'assignPermissions']);
+            Route::get('/users/{user}/roles-permissions', [UserRoleController::class, 'getUserRolesAndPermissions']);
+            Route::delete('/users/{user}/remove-role', [UserRoleController::class, 'removeRole']);
+            Route::get('/users/{user}/check-permission/{permission}', [UserRoleController::class, 'checkPermission']);
+            Route::get('/users/{user}/check-role/{role}', [UserRoleController::class, 'checkRole']);
+
+            // User management (CRUD)
+            Route::get('/users/stats', [UserController::class, 'stats']);
+            Route::get('/users', [UserController::class, 'index']);
+            Route::post('/users', [UserController::class, 'store']);
+            Route::get('/users/{user}', [UserController::class, 'show']);
+            Route::put('/users/{user}', [UserController::class, 'update']);
+            Route::patch('/users/{user}', [UserController::class, 'update']);
+            Route::delete('/users/{user}', [UserController::class, 'destroy']);
+            Route::post('/users/{user}/restore', [UserController::class, 'restore']);
+            Route::delete('/users/{user}/force-delete', [UserController::class, 'forceDelete']);
+            Route::post('/users/{user}/toggle-verification', [UserController::class, 'toggleEmailVerification']);
+            Route::post('/users/{user}/revoke-tokens', [UserController::class, 'revokeTokens']);
+        });
     });
 });
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/checkToken', [AuthController::class, 'checkToken']);
 
     // Profile routes with rate limiting
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::get('/profile/activity', [ProfileController::class, 'activitySummary']);
+    Route::get('/profile/roles-permissions', [ProfileController::class, 'rolesAndPermissions']);
     Route::middleware('throttle:5,1')->group(function () {
         Route::put('/profile', [ProfileController::class, 'update']);
     });

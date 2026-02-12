@@ -18,7 +18,7 @@ class ProfileController extends Controller
      */
     public function show(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user()->load('roles', 'permissions');
 
         return response()->json([
             'user' => [
@@ -29,6 +29,8 @@ class ProfileController extends Controller
                 'email_verified_at' => $user->email_verified_at,
                 'provider' => $user->provider,
                 'created_at' => $user->created_at,
+                'roles' => $user->roles->pluck('name'),
+                'permissions' => $user->getAllPermissions()->pluck('name'),
             ]
         ]);
     }
@@ -222,6 +224,20 @@ class ProfileController extends Controller
                 'total_addresses' => $user->addresses()->count(),
                 'member_since' => $user->created_at->format('Y-m-d'),
             ]
+        ]);
+    }
+
+    /**
+     * Get current user's roles and permissions
+     */
+    public function rolesAndPermissions(Request $request)
+    {
+        $user = $request->user()->load('roles.permissions', 'permissions');
+
+        return response()->json([
+            'roles' => $user->roles->pluck('name'),
+            'direct_permissions' => $user->permissions->pluck('name'),
+            'all_permissions' => $user->getAllPermissions()->pluck('name'),
         ]);
     }
 }

@@ -14,6 +14,8 @@
         "laravel/tinker": "^2.8",
         "mailgun/mailgun-php": "*",
         "predis/predis": "^3.2",
+        "spatie/laravel-medialibrary": "^10.15",
+        "spatie/laravel-permission": "*",
         "symfony/http-client": "^6.4",
         "symfony/mailgun-mailer": "^6.4"
     },

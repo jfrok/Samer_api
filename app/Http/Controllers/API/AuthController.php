@@ -185,13 +185,47 @@ class AuthController extends Controller
         return response()->json(['token' => $token, 'user' => $user]);
     }
 
-    // Logout current token
+    // Logout current token and create a new one
     public function logout(Request $request)
     {
-        if ($request->user()) {
-            $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+
+        if ($user) {
+            // Delete the current token
+            $currentToken = $request->user()->currentAccessToken();
+            $currentToken->delete();
+
+            // Create a new token
+            $newToken = $user->createToken('auth_token')->plainTextToken;
+
+            // Clear old cookie and set new one
+            $cookieName = 'auth_token';
+            $minutes = 60 * 24 * 7; // 7 days
+            $newCookie = cookie(
+                $cookieName,
+                $newToken,
+                $minutes,
+                null,
+                null,
+                false, // secure: set true on HTTPS
+                true,  // httpOnly
+                false, // raw
+                'Lax'  // sameSite
+            );
+
+            return response()->json([
+                'message' => 'Logged out and new token created',
+                'token' => $newToken,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ]
+            ])->withCookie($newCookie);
         }
-        // Clear cookie
+
+        // If no user, just clear cookie
         $clearCookie = cookie('auth_token', '', -60);
         return response()->json(['message' => 'Logged out'])->withCookie($clearCookie);
     }
@@ -325,5 +359,120 @@ class AuthController extends Controller
         }
 
         return $username;
+    }
+
+    /**
+     * Check if the provided token is valid
+     */
+    public function checkToken(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Invalid or expired token'
+            ], 401);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'email_verified_at' => $user->email_verified_at,
+                'roles' => $user->roles->pluck('name'),
+                'permissions' => $user->getAllPermissions()->pluck('name'),
+            ],
+            'message' => 'Token is valid'
+        ]);
+    }
+
+    /**
+     * Check if the provided token (passed as parameter) is valid
+     * Note: This is less secure than using Authorization header
+     */
+    public function checkTokenByParam($token)
+    {
+        try {
+            // Parse token to extract ID and token value
+            // Laravel Sanctum tokens are in format: {tokenId}|{tokenValue}
+            if (!str_contains($token, '|')) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'Invalid token format. Expected format: {id}|{token}'
+                ], 400);
+            }
+
+            [$id, $tokenValue] = explode('|', $token, 2);
+
+            // Validate ID is numeric
+            if (!is_numeric($id)) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'Invalid token ID'
+                ], 400);
+            }
+
+            // Find the token in database
+            $personalAccessToken = \Laravel\Sanctum\PersonalAccessToken::find($id);
+
+            if (!$personalAccessToken) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'Token not found'
+                ], 404);
+            }
+
+            // Verify token hash using SHA-256 (how Sanctum stores tokens)
+            // Sanctum uses: hash('sha256', $plainTextToken)
+            if (!hash_equals($personalAccessToken->token, hash('sha256', $tokenValue))) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'Invalid token'
+                ], 401);
+            }
+
+            // Check if token is expired
+            if ($personalAccessToken->expires_at && $personalAccessToken->expires_at->isPast()) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'Token has expired'
+                ], 401);
+            }
+
+            // Get the user
+            $user = $personalAccessToken->tokenable;
+
+            if (!$user) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'valid' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'email_verified_at' => $user->email_verified_at,
+                    'roles' => $user->roles->pluck('name'),
+                    'permissions' => $user->getAllPermissions()->pluck('name'),
+                ],
+                'message' => 'Token is valid',
+                'token_created_at' => $personalAccessToken->created_at,
+                'token_last_used_at' => $personalAccessToken->last_used_at,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Error validating token: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
