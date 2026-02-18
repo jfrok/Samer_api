@@ -110,17 +110,24 @@ class ProductController extends Controller
     // Admin methods
     public function store(Request $request)
     {
+        // return $request->all();
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
             'category_id' => 'required|exists:categories,id',
             'brand' => 'nullable|string|max:255',
             'base_price' => 'required|numeric|min:0|max:1000000',
-            'images' => 'nullable|array',
+            'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'gallery.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'images' => 'nullable|array|max:10',
             'images.*' => ['string', function ($attribute, $value, $fail) {
-                // Accept either URL or base64 encoded image
+                // Accept URL or base64
                 if (!filter_var($value, FILTER_VALIDATE_URL) && !preg_match('/^data:image\/(jpeg|jpg|png|gif|webp);base64,/', $value)) {
-                    $fail('The ' . $attribute . ' must be a valid URL or base64 encoded image.');
+                    $fail('The images must be valid URLs or base64 encoded images.');
+                }
+                // Check base64 size (max ~5MB base64 = ~7MB string)
+                if (preg_match('/^data:image/', $value) && strlen($value) > 7000000) {
+                    $fail('The base64 image is too large. Maximum 5MB.');
                 }
             }],
             'is_active' => 'boolean',
@@ -135,7 +142,6 @@ class ProductController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
-
         $data = $validator->validated();
         $data['slug'] = Str::slug($data['name']);
 
@@ -151,7 +157,40 @@ class ProductController extends Controller
         $variantsData = $data['variants'] ?? [];
         unset($data['variants']);
 
+        // Extract and process images
+        $imagesData = $data['images'] ?? [];
+        unset($data['images']);
+
+        // Remove file fields from data before creating product
+        unset($data['main_image']);
+        unset($data['gallery']);
+
         $product = Product::create($data);
+
+        // Upload main image if provided
+        if ($request->hasFile('main_image')) {
+            $product->addMediaFromRequest('main_image')
+                ->toMediaCollection('main_image');
+        }
+
+        // Upload gallery images if provided
+        if ($request->hasFile('gallery')) {
+            foreach ($request->file('gallery') as $image) {
+                $product->addMedia($image)
+                    ->toMediaCollection('gallery');
+            }
+        }
+
+        // Process base64 images from 'images' field
+        if (!empty($imagesData)) {
+            foreach ($imagesData as $index => $imageData) {
+                if (preg_match('/^data:image\/(\w+);base64,/', $imageData)) {
+                    // It's a base64 image - convert and upload
+                    $this->uploadBase64Image($product, $imageData, $index === 0 ? 'main_image' : 'gallery');
+                }
+                // URLs are ignored - we only store files now
+            }
+        }
 
         // Create variants
         if (!empty($variantsData)) {
@@ -181,11 +220,17 @@ class ProductController extends Controller
             'category_id' => 'exists:categories,id',
             'brand' => 'nullable|string|max:255',
             'base_price' => 'numeric|min:0|max:1000000',
-            'images' => 'nullable|array',
+            'main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'gallery.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'images' => 'nullable|array|max:10',
             'images.*' => ['string', function ($attribute, $value, $fail) {
-                // Accept either URL or base64 encoded image
+                // Accept URL or base64
                 if (!filter_var($value, FILTER_VALIDATE_URL) && !preg_match('/^data:image\/(jpeg|jpg|png|gif|webp);base64,/', $value)) {
-                    $fail('The ' . $attribute . ' must be a valid URL or base64 encoded image.');
+                    $fail('The images must be valid URLs or base64 encoded images.');
+                }
+                // Check base64 size
+                if (preg_match('/^data:image/', $value) && strlen($value) > 7000000) {
+                    $fail('The base64 image is too large. Maximum 5MB.');
                 }
             }],
             'is_active' => 'boolean',
@@ -212,6 +257,14 @@ class ProductController extends Controller
         $variantsData = $data['variants'] ?? null;
         unset($data['variants']);
 
+        // Extract and process images
+        $imagesData = $data['images'] ?? [];
+        unset($data['images']);
+
+        // Remove file fields from data
+        unset($data['main_image']);
+        unset($data['gallery']);
+
         // Update slug if name changed
         if (isset($data['name']) && $data['name'] !== $product->name) {
             $data['slug'] = Str::slug($data['name']);
@@ -226,6 +279,34 @@ class ProductController extends Controller
         }
 
         $product->update($data);
+
+        // Upload main image if provided
+        if ($request->hasFile('main_image')) {
+            $product->clearMediaCollection('main_image');
+            $product->addMediaFromRequest('main_image')
+                ->toMediaCollection('main_image');
+        }
+
+        // Upload gallery images if provided
+        if ($request->hasFile('gallery')) {
+            // Optionally clear existing gallery
+            // $product->clearMediaCollection('gallery');
+            foreach ($request->file('gallery') as $image) {
+                $product->addMedia($image)
+                    ->toMediaCollection('gallery');
+            }
+        }
+
+        // Process base64 images from 'images' field
+        if (!empty($imagesData)) {
+            foreach ($imagesData as $index => $imageData) {
+                if (preg_match('/^data:image\/(\w+);base64,/', $imageData)) {
+                    // It's a base64 image - convert and upload
+                    $this->uploadBase64Image($product, $imageData, $index === 0 ? 'main_image' : 'gallery');
+                }
+                // URLs are ignored - we only store files now
+            }
+        }
 
         // Update variants if provided
         if ($variantsData !== null) {
@@ -392,6 +473,63 @@ class ProductController extends Controller
             if (!empty($child['children'])) {
                 $this->collectChildIds($child['children'], $ids);
             }
+        }
+    }
+
+    /**
+     * Convert base64 image to file and upload to media collection
+     */
+    private function uploadBase64Image($model, $base64String, $collection = 'gallery')
+    {
+        try {
+            // Extract image data
+            if (!preg_match('/^data:image\/(\w+);base64,/', $base64String, $matches)) {
+                return false;
+            }
+
+            $extension = $matches[1];
+            if ($extension === 'jpg') {
+                $extension = 'jpeg';
+            }
+
+            // Decode base64
+            $imageData = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $base64String));
+
+            if (!$imageData) {
+                return false;
+            }
+
+            // Create temporary file
+            $tempPath = storage_path('app/temp');
+            if (!file_exists($tempPath)) {
+                mkdir($tempPath, 0755, true);
+            }
+
+            $fileName = 'upload_' . uniqid() . '.' . $extension;
+            $tempFile = $tempPath . '/' . $fileName;
+
+            // Write file
+            file_put_contents($tempFile, $imageData);
+
+            // Upload to media collection
+            if ($collection === 'main_image') {
+                $model->clearMediaCollection('main_image');
+            }
+
+            $model->addMedia($tempFile)
+                ->usingFileName($fileName)
+                ->toMediaCollection($collection);
+
+            // Clean up temp file
+            @unlink($tempFile);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to upload base64 image', [
+                'error' => $e->getMessage(),
+                'collection' => $collection
+            ]);
+            return false;
         }
     }
 }

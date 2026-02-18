@@ -7,29 +7,68 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ProductResource extends JsonResource
 {
+    /**
+     * Transform the resource into an array.
+     * Lightweight resource for listings.
+     *
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
-        // Check if variants relationship is loaded and filter for in-stock only
-        $inStockVariants = $this->whenLoaded('variants', function () {
-            return $this->variants->filter(function ($variant) {
-                return $variant->stock > 0;
-            });
-        }, collect());
+        // Get one featured image (first gallery image)
+        $featuredImage = $this->getFirstMedia('gallery');
 
         return [
-            'id' => (int) $this->id,
+            'id' => $this->id,
             'name' => $this->name,
-            'description' => $this->description,
-            'brand' => $this->brand,
-            // Ensure numeric JSON types
-            'base_price' => (float) $this->base_price,
-            'images' => $this->images,
             'slug' => $this->slug,
+            'description' => $this->when(
+                $request->query('include_description'),
+                \Str::limit($this->description, 150)
+            ),
+            'brand' => $this->brand,
+            'base_price' => (float) $this->base_price,
             'is_active' => $this->is_active,
-            'category' => $this->whenLoaded('category', function () {
-                return new CategoryResource($this->category);
+
+            // Category
+            'category' => $this->whenLoaded('category', fn() => [
+                'id' => $this->category->id,
+                'name' => $this->category->name,
+                'slug' => $this->category->slug,
+            ]),
+
+            // Featured image (optimized for listing)
+            'featured_image' => $featuredImage ? [
+                'id' => $featuredImage->id,
+                'thumb' => $featuredImage->getUrl('thumb'),
+                'medium' => $featuredImage->getUrl('medium'),
+                'alt_text' => $featuredImage->getCustomProperty('alt_text', $this->name),
+            ] : null,
+
+            // Gallery count
+            'gallery_count' => $this->getMedia('gallery')->count(),
+
+            // Variant summary
+            'variants_count' => $this->whenLoaded('variants', fn() => $this->variants->count()),
+            'price_range' => $this->whenLoaded('variants', function () {
+                if ($this->variants->isEmpty()) {
+                    return null;
+                }
+
+                $prices = $this->variants->pluck('price');
+                $min = $prices->min();
+                $max = $prices->max();
+
+                return [
+                    'min' => (float) $min,
+                    'max' => (float) $max,
+                    'formatted' => $min == $max ? "{$min}" : "{$min} - {$max}",
+                ];
             }),
-            'variants' => ProductVariantResource::collection($inStockVariants),
+
+            // Timestamps
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

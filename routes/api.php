@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ProductController;
+use App\Http\Controllers\API\ProductGalleryController;
 use App\Http\Controllers\API\CategoryController;
 use App\Http\Controllers\API\CartController;
 use App\Http\Controllers\API\OrderController;
@@ -211,7 +212,13 @@ Route::post('/orders', [OrderController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->group(function () {
         Route::apiResource('products', ProductController::class);
-        Route::apiResource('categories', CategoryController::class)->except(['show']);
+
+        // Product Gallery Management Routes
+        Route::delete('/products/{product}/gallery/{mediaId}', [ProductGalleryController::class, 'deleteGalleryImage']);
+        Route::post('/products/{product}/gallery/reorder', [ProductGalleryController::class, 'reorderGalleryImages']);
+        Route::patch('/products/{product}/gallery/{mediaId}', [ProductGalleryController::class, 'updateImageMetadata']);
+
+        Route::apiResource('categories', CategoryController::class);
         Route::get('/dashboard/stats', [ProductController::class, 'dashboardStats']);
 
         // Orders admin routes
