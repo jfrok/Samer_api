@@ -76,6 +76,7 @@ class ProductController extends Controller
         // Eager load with inStock scope
         $products = $query->with([
             'category',
+            'media', // Load gallery images
             'variants' => function ($q) {
                 $q->inStock();
             }
@@ -96,6 +97,7 @@ class ProductController extends Controller
 
             $product->load([
                 'category',
+                'media', // Load gallery images
                 'variants' => function ($q) {
                     $q->inStock();
                 }

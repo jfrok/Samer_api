@@ -45,6 +45,43 @@ class ProductResource extends JsonResource
                 'alt_text' => $featuredImage->getCustomProperty('alt_text', $this->name),
             ] : null,
 
+            // Full Gallery with all images
+            'gallery' => $this->getMedia('gallery')->map(function ($media) {
+                return [
+                    'id' => $media->id,
+                    'uuid' => $media->uuid,
+                    'order' => $media->order_column,
+                    'original_url' => $media->getUrl(),
+                    'conversions' => [
+                        [
+                            'name' => 'thumb',
+                            'url' => $media->getUrl('thumb'),
+                            'width' => 200,
+                            'height' => 200,
+                        ],
+                        [
+                            'name' => 'medium',
+                            'url' => $media->getUrl('medium'),
+                            'width' => 600,
+                            'height' => 600,
+                        ],
+                        [
+                            'name' => 'large',
+                            'url' => $media->getUrl('large'),
+                            'width' => 1200,
+                            'height' => 1200,
+                        ],
+                    ],
+                    'custom_properties' => [
+                        'alt_text' => $media->getCustomProperty('alt_text', ''),
+                        'caption' => $media->getCustomProperty('caption', ''),
+                    ],
+                    'file_name' => $media->file_name,
+                    'mime_type' => $media->mime_type,
+                    'size' => $media->size,
+                ];
+            }),
+
             // Gallery count
             'gallery_count' => $this->getMedia('gallery')->count(),
 
