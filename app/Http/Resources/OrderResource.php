@@ -38,6 +38,8 @@ class OrderResource extends JsonResource
                 return $this->items->map(function ($item) {
                     $variant = $item->productVariant; // may be null if soft-deleted or missing
                     $product = $variant?->product;
+                    $featuredImage = $product ? $product->getFirstMedia('gallery') : null;
+
                     return [
                         'id' => $item->id,
                         'order_id' => $item->order_id,
@@ -55,7 +57,8 @@ class OrderResource extends JsonResource
                                 'id' => $product->id,
                                 'name' => $product->name,
                                 'slug' => $product->slug,
-                                'image_url' => $product->image_url,
+                                'image_src' => $featuredImage ? $featuredImage->getUrl('medium') : null,
+                                'image_thumb' => $featuredImage ? $featuredImage->getUrl('thumb') : null,
                                 'description' => $product->description,
                             ] : null,
                         ] : null,

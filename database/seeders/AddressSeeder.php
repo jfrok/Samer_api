@@ -24,11 +24,12 @@ class AddressSeeder extends Seeder
                 Address::create([
                     'user_id' => $user->id,
                     'type' => $faker->randomElement(['shipping', 'billing']),
+                    'name' => $faker->randomElement(['Home', 'Work', 'Office', 'Apartment']),
                     'street' => $faker->streetAddress,
+                    'closest_point' => $faker->secondaryAddress,
                     'city' => $faker->city,
                     'state' => $faker->state,
                     'country' => $faker->country,
-                    'zip_code' => $faker->postcode,
                     'is_default' => $i === 0, // First address is default
                 ]);
             }

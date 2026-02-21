@@ -30,7 +30,7 @@ class OrderController extends Controller
     {
         $orders = Order::where('user_id', Auth::id())
             ->with([
-                'items.productVariant.product',
+                'items.productVariant.product.media',
                 'shippingAddress'
             ])
             ->orderBy('created_at', 'desc')
@@ -44,7 +44,7 @@ class OrderController extends Controller
     {
         $query = Order::with([
             'user',
-            'items.productVariant.product',
+            'items.productVariant.product.media',
             'shippingAddress'
         ]);
 
@@ -80,7 +80,7 @@ class OrderController extends Controller
     {
         $order->load([
             'user',
-            'items.productVariant.product',
+            'items.productVariant.product.media',
             'shippingAddress'
         ]);
 
@@ -122,7 +122,7 @@ class OrderController extends Controller
         }
 
         $order->load([
-            'items.productVariant.product',
+            'items.productVariant.product.media',
             'shippingAddress'
         ]);
 
@@ -135,7 +135,7 @@ class OrderController extends Controller
     public function showByReference($reference)
     {
         $order = Order::with([
-            'items.productVariant.product',
+            'items.productVariant.product.media',
             'shippingAddress'
         ])->where('reference_number', $reference)->firstOrFail();
 
@@ -153,7 +153,7 @@ class OrderController extends Controller
     public function publicShowByReference($reference)
     {
         $order = Order::with([
-            'items.productVariant.product',
+            'items.productVariant.product.media',
             'shippingAddress'
         ])->where('reference_number', $reference)->firstOrFail();
 

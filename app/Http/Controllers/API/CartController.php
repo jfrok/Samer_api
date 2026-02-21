@@ -156,7 +156,7 @@ class CartController extends Controller
 
         return response()->json([
             'message' => 'Item added to cart successfully',
-            'cart_item' => new CartResource($cartItem->load('productVariant.product'))
+            'cart_item' => new CartResource($cartItem->load('productVariant.product.media'))
         ]);
     }
 
@@ -179,7 +179,7 @@ class CartController extends Controller
         }
 
         $carts = Cart::where('user_id', $userId)
-            ->with(['productVariant.product'])
+            ->with(['productVariant.product.media'])
             ->get();
 
         Log::info('Found cart items for user', ['user_id' => $userId, 'cart_count' => $carts->count()]);

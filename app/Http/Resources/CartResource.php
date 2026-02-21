@@ -9,17 +9,21 @@ class CartResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $product = $this->productVariant->product;
+        $featuredImage = $product->getFirstMedia('gallery');
+
         return [
             'id' => $this->id,
             'quantity' => $this->quantity,
             'product_variant_id' => $this->product_variant_id,
             'product' => [
-                'id' => $this->productVariant->product->id,
-                'title' => $this->productVariant->product->name,
-                'slug' => $this->productVariant->product->slug,
+                'id' => $product->id,
+                'title' => $product->name,
+                'slug' => $product->slug,
                 'price' => $this->productVariant->price,
-                'image_src' => $this->productVariant->product->image_url ?? '/api/placeholder/300/300',
-                'description' => $this->productVariant->product->description,
+                'image_src' => $featuredImage ? $featuredImage->getUrl('medium') : null,
+                'image_thumb' => $featuredImage ? $featuredImage->getUrl('thumb') : null,
+                'description' => $product->description,
             ],
             'variant' => [
                 'id' => $this->productVariant->id,
