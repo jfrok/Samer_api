@@ -17,7 +17,7 @@ class MediaLibraryController extends Controller
     }
 
     /**
-     * Get all media in the library (unique by hash)
+     * Get all media in the library (only original uploads, not library attachments)
      */
     public function index(Request $request)
     {
@@ -25,6 +25,7 @@ class MediaLibraryController extends Controller
         $search = $request->get('search', '');
 
         $query = Media::with('model:id,name')
+            ->whereRaw("JSON_EXTRACT(custom_properties, '$.is_original_upload') = true OR JSON_EXTRACT(custom_properties, '$.is_original_upload') IS NULL")
             ->orderBy('created_at', 'desc');
 
         if ($search) {
@@ -38,7 +39,7 @@ class MediaLibraryController extends Controller
 
         return response()->json([
             'data' => $media->map(function ($item) {
-                // Count how many times this image is used (by hash if available)
+                // Count how many times this image is used (by hash)
                 $usageCount = $item->hash
                     ? Media::where('hash', $item->hash)->count()
                     : 1;

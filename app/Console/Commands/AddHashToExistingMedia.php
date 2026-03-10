@@ -50,7 +50,17 @@ class AddHashToExistingMedia extends Command
 
                 if (file_exists($path)) {
                     $hash = hash_file('sha256', $path);
-                    $item->update(['hash' => $hash]);
+                    
+                    // Mark as original upload if not already set
+                    $customProps = $item->custom_properties;
+                    if (!isset($customProps['is_original_upload'])) {
+                        $customProps['is_original_upload'] = true;
+                    }
+                    
+                    $item->hash = $hash;
+                    $item->custom_properties = $customProps;
+                    $item->save();
+                    
                     $processed++;
                 } else {
                     $this->error("\nFile not found: {$path}");
