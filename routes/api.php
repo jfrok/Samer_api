@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ProductController;
 use App\Http\Controllers\API\ProductGalleryController;
+use App\Http\Controllers\API\MediaLibraryController;
 use App\Http\Controllers\API\CategoryController;
 use App\Http\Controllers\API\CartController;
 use App\Http\Controllers\API\OrderController;
@@ -217,6 +218,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/products/{product}/gallery/{mediaId}', [ProductGalleryController::class, 'deleteGalleryImage']);
         Route::post('/products/{product}/gallery/reorder', [ProductGalleryController::class, 'reorderGalleryImages']);
         Route::patch('/products/{product}/gallery/{mediaId}', [ProductGalleryController::class, 'updateImageMetadata']);
+        Route::post('/products/{product}/gallery/attach', [ProductGalleryController::class, 'attachExistingMedia']);
+
+        // Media Library Management Routes (Album System)
+        Route::get('/media-library', [MediaLibraryController::class, 'index']);
+        Route::get('/media-library/{mediaId}/usage', [MediaLibraryController::class, 'usage']);
+        Route::get('/media-library/orphaned', [MediaLibraryController::class, 'orphaned']);
+        Route::get('/media-library/duplicates', [MediaLibraryController::class, 'duplicates']);
+        Route::delete('/media-library/{mediaId}', [MediaLibraryController::class, 'destroy']);
+        Route::post('/media-library/cleanup-orphaned', [MediaLibraryController::class, 'cleanupOrphaned']);
 
         Route::apiResource('categories', CategoryController::class);
         Route::get('/dashboard/stats', [ProductController::class, 'dashboardStats']);

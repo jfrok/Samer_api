@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductDetailResource;
 use App\Models\Product;
+use App\Services\MediaService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,13 @@ use Illuminate\Support\Str;
 
 class ProductGalleryController extends Controller
 {
+    protected $mediaService;
+
+    public function __construct(MediaService $mediaService)
+    {
+        $this->mediaService = $mediaService;
+    }
+
     /**
      * Display a listing of products.
      */
@@ -56,16 +64,28 @@ class ProductGalleryController extends Controller
                 'is_active' => $request->input('is_active', true),
             ]);
 
-            // Upload gallery images
+            // Upload gallery images with duplicate detection
             if ($request->hasFile('gallery')) {
                 foreach ($request->file('gallery') as $index => $image) {
-                    $product->addMedia($image)
-                        ->withCustomProperties([
-                            'alt_text' => $request->input("gallery_alt.{$index}", $product->name),
-                            'caption' => $request->input("gallery_caption.{$index}", ''),
-                        ])
-                        ->preservingOriginal() // Keep original file
-                        ->toMediaCollection('gallery');
+                    // Check for duplicates
+                    $duplicate = $this->mediaService->findDuplicateMedia($image);
+
+                    if ($duplicate && $request->input('prevent_duplicates', true)) {
+                        // Reuse existing media
+                        $media = $this->mediaService->attachExistingMedia($product, $duplicate->id, 'gallery');
+                    } else {
+                        // Upload new media
+                        $media = $product->addMedia($image)
+                            ->withCustomProperties([
+                                'alt_text' => $request->input("gallery_alt.{$index}", $product->name),
+                                'caption' => $request->input("gallery_caption.{$index}", ''),
+                            ])
+                            ->preservingOriginal() // Keep original file
+                            ->toMediaCollection('gallery');
+
+                        // Add hash for future duplicate detection
+                        $this->mediaService->addHashToMedia($media);
+                    }
                 }
             }
 
@@ -123,16 +143,28 @@ class ProductGalleryController extends Controller
                 'name', 'slug', 'description', 'category_id', 'brand', 'base_price', 'is_active'
             ]));
 
-            // Upload new gallery images
+            // Upload new gallery images with duplicate detection
             if ($request->hasFile('gallery')) {
                 foreach ($request->file('gallery') as $index => $image) {
-                    $product->addMedia($image)
-                        ->withCustomProperties([
-                            'alt_text' => $request->input("gallery_alt.{$index}", $product->name),
-                            'caption' => $request->input("gallery_caption.{$index}", ''),
-                        ])
-                        ->preservingOriginal()
-                        ->toMediaCollection('gallery');
+                    // Check for duplicates
+                    $duplicate = $this->mediaService->findDuplicateMedia($image);
+
+                    if ($duplicate && $request->input('prevent_duplicates', true)) {
+                        // Reuse existing media
+                        $media = $this->mediaService->attachExistingMedia($product, $duplicate->id, 'gallery');
+                    } else {
+                        // Upload new media
+                        $media = $product->addMedia($image)
+                            ->withCustomProperties([
+                                'alt_text' => $request->input("gallery_alt.{$index}", $product->name),
+                                'caption' => $request->input("gallery_caption.{$index}", ''),
+                            ])
+                            ->preservingOriginal()
+                            ->toMediaCollection('gallery');
+
+                        // Add hash for future duplicate detection
+                        $this->mediaService->addHashToMedia($media);
+                    }
                 }
             }
 
@@ -292,6 +324,34 @@ class ProductGalleryController extends Controller
 
             return response()->json([
                 'message' => 'Failed to update image metadata',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Attach existing media from library to product.
+     */
+    public function attachExistingMedia(Request $request, Product $product): JsonResponse
+    {
+        $request->validate([
+            'media_id' => 'required|integer|exists:media,id',
+            'collection' => 'nullable|string|in:gallery,main_image',
+        ]);
+
+        try {
+            $collection = $request->input('collection', 'gallery');
+            $media = $this->mediaService->attachExistingMedia($product, $request->media_id, $collection);
+
+            return response()->json([
+                'message' => 'Existing media attached successfully',
+                'data' => new ProductDetailResource($product->load(['category', 'variants']))
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Attach existing media failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'message' => 'Failed to attach media',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
