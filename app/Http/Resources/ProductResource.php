@@ -85,6 +85,11 @@ class ProductResource extends JsonResource
             // Gallery count
             'gallery_count' => $this->getMedia('gallery')->count(),
 
+            // Variants - Full details for admin editing
+            'variants' => $this->whenLoaded('variants', fn() => 
+                ProductVariantResource::collection($this->variants)
+            ),
+
             // Variant summary
             'variants_count' => $this->whenLoaded('variants', fn() => $this->variants->count()),
             'price_range' => $this->whenLoaded('variants', function () {

@@ -98,9 +98,7 @@ class ProductController extends Controller
             $product->load([
                 'category',
                 'media', // Load gallery images
-                'variants' => function ($q) {
-                    $q->inStock();
-                }
+                'variants' // Load ALL variants (admin needs to see all, including out-of-stock)
             ]);
 
             return new ProductResource($product);
