@@ -40,13 +40,13 @@ class MediaService
     public function attachExistingMedia(Product $product, int $mediaId, string $collection = 'gallery'): Media
     {
         $existingMedia = Media::findOrFail($mediaId);
-        
+
         // Check if this product already has this image (by hash)
         if ($existingMedia->hash) {
             $alreadyAttached = $product->getMedia($collection)
                 ->where('hash', $existingMedia->hash)
                 ->first();
-            
+
             if ($alreadyAttached) {
                 // Image already attached to this product, return existing
                 return $alreadyAttached;
