@@ -56,6 +56,15 @@ return [
             'throw' => false,
         ],
 
+        // Production disk pointing to dashboard storage
+        'dashboard_storage' => [
+            'driver' => 'local',
+            'root' => env('DASHBOARD_STORAGE_PATH', base_path('../../dashboard.port.samsmy.com/storage')),
+            'url' => env('DASHBOARD_STORAGE_URL', 'https://dashboard.port.samsmy.com/storage'),
+            'visibility' => 'public',
+            'throw' => false,
+        ],
+
     ],
 
     /*
