@@ -24,7 +24,7 @@ class LikedProductController extends Controller
             'status' => 'success',
             'data' => $likedProducts,
             'count' => $likedProducts->count()
-        ]);
+        ], 200);
     }
 
     /**

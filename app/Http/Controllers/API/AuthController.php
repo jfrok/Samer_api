@@ -151,14 +151,31 @@ class AuthController extends Controller
         ]);
 
         if (!Auth::attempt($request->only('email', 'password'))) {
+            // Log failed login attempt
+            Log::warning('Failed login attempt', [
+                'email' => $request->email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now(),
+            ]);
+
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
         $user = Auth::user();
+
+        // Log successful login
+        Log::info('User logged in', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'timestamp' => now(),
+        ]);
+
         $token = $user->createToken('auth_token')->plainTextToken;
-        return response()->json(['token' => $token, 'user' => $user]);
+        return response()->json(['token' => $token, 'user' => $user], 200);
     }
 
     // Admin login
@@ -170,6 +187,14 @@ class AuthController extends Controller
         ]);
 
         if (!Auth::attempt($request->only('email', 'password'))) {
+            // Log failed admin login attempt
+            Log::warning('Failed admin login attempt', [
+                'email' => $request->email,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'timestamp' => now(),
+            ]);
+
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -177,9 +202,25 @@ class AuthController extends Controller
 
         $user = Auth::user();
         if (!isset($user->role) || strtolower($user->role) !== 'admin') {
+            // Log unauthorized admin access attempt
+            Log::alert('Unauthorized admin access attempt', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'ip' => $request->ip(),
+                'timestamp' => now(),
+            ]);
+
             auth()->logout();
             return response()->json(['message' => 'Unauthorized - admin access required'], 403);
         }
+
+        // Log successful admin login
+        Log::info('Admin logged in', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'ip' => $request->ip(),
+            'timestamp' => now(),
+        ]);
 
         $token = $user->createToken('admin_auth_token')->plainTextToken;
         return response()->json(['token' => $token, 'user' => $user]);

@@ -155,11 +155,14 @@ Route::prefix('mail')->group(function () {
     });
 });
 
-// Public routes
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/admin/login', [AuthController::class, 'adminLogin']);
-Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);
+// Public routes with rate limiting for authentication
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+    Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);
+});
+
 Route::match(['get', 'post'], '/checkToken/{token}', [AuthController::class, 'checkTokenByParam']);
 
 // Password reset routes

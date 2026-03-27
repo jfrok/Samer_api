@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Rules\SecureFileUpload;
 
 class UpdateProductRequest extends FormRequest
 {
@@ -44,7 +45,8 @@ class UpdateProductRequest extends FormRequest
                 'image',
                 'mimes:jpeg,jpg,png,gif,webp',
                 'max:5120',
-                'dimensions:min_width=100,min_height=100,max_width=4000,max_height=4000'
+                'dimensions:min_width=100,min_height=100,max_width=4000,max_height=4000',
+                new SecureFileUpload(['image/jpeg', 'image/png', 'image/gif', 'image/webp'], 5120)
             ],
 
             // Variants

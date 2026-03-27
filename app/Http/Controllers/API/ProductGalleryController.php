@@ -244,7 +244,7 @@ class ProductGalleryController extends Controller
 
             return response()->json([
                 'message' => 'Image deleted successfully'
-            ]);
+            ], 200);
         } catch (\Exception $e) {
             Log::error('Image deletion failed', ['error' => $e->getMessage()]);
 

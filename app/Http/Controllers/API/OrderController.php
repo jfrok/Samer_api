@@ -112,7 +112,7 @@ class OrderController extends Controller
     {
         // Soft delete the order; items remain for audit and can reference the trashed order
         $order->delete();
-        return response()->json(['message' => 'Order soft-deleted successfully']);
+        return response()->json(['message' => 'Order soft-deleted successfully'], 200);
     }
 
     public function show(Order $order)

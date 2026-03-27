@@ -32,7 +32,7 @@ class ProfileController extends Controller
                 'roles' => $user->roles->pluck('name'),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
             ]
-        ]);
+        ], 200);
     }
 
     /**
@@ -224,7 +224,7 @@ class ProfileController extends Controller
                 'total_addresses' => $user->addresses()->count(),
                 'member_since' => $user->created_at->format('Y-m-d'),
             ]
-        ]);
+        ], 200);
     }
 
     /**

@@ -61,7 +61,7 @@ class AddressController extends Controller
             abort(403);
         }
 
-        return response()->json($address);
+        return response()->json($address, 200);
     }
 
     public function update(Request $request, Address $address)

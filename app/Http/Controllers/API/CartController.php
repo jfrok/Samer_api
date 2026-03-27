@@ -204,7 +204,7 @@ class CartController extends Controller
         $cart = Cart::where('user_id', $userId)->where('id', $id)->firstOrFail();
         $cart->delete();
 
-        return response()->json(['message' => 'Item removed from cart']);
+        return response()->json(['message' => 'Item removed from cart'], 200);
     }
 
     public function update(Request $request, $id)
@@ -226,7 +226,7 @@ class CartController extends Controller
         return response()->json([
             'message' => 'Cart item updated successfully',
             'cart_item' => new CartResource($cart->load('productVariant.product'))
-        ]);
+        ], 200);
     }
 
     public function clear()
@@ -234,6 +234,6 @@ class CartController extends Controller
         $userId = Auth::id();
         Cart::where('user_id', $userId)->delete();
 
-        return response()->json(['message' => 'Cart cleared successfully']);
+        return response()->json(['message' => 'Cart cleared successfully'], 200);
     }
 }

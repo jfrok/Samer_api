@@ -18,7 +18,7 @@ class PermissionController extends Controller
 
         return response()->json([
             'permissions' => $permissions
-        ]);
+        ], 200);
     }
 
     /**
@@ -54,7 +54,7 @@ class PermissionController extends Controller
 
         return response()->json([
             'permission' => $permission
-        ]);
+        ], 200);
     }
 
     /**
@@ -80,7 +80,7 @@ class PermissionController extends Controller
         return response()->json([
             'message' => 'Permission updated successfully',
             'permission' => $permission
-        ]);
+        ], 200);
     }
 
     /**

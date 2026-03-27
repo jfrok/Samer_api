@@ -22,7 +22,7 @@ class PageContentController extends Controller
 
         return response()->json([
             'data' => $pageContent->content
-        ]);
+        ], 200);
     }
 
     // Admin endpoint to update page content
