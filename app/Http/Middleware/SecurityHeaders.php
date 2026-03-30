@@ -21,11 +21,11 @@ class SecurityHeaders
         'javascript:',
         'onerror=',
         'onload=',
-        '\.\./\.\.',  // Path traversal
+        '\\.\\./\\.\\.',  // Path traversal (../..)
         '/etc/passwd',
-        'cmd\.exe',
+        'cmd\\.exe',
         'base64_decode',
-        'eval\(',
+        'eval\\(',
     ];
 
     /**
@@ -90,7 +90,8 @@ class SecurityHeaders
             $lowerValue = strtolower($value);
 
             foreach ($this->suspiciousPatterns as $pattern) {
-                if (preg_match('/' . $pattern . '/i', $lowerValue)) {
+                // Use # as delimiter to avoid conflicts with / in patterns
+                if (preg_match('#' . $pattern . '#i', $lowerValue)) {
                     // Instead of blocking on keywords, just log and let Eloquent handle it
                     // Eloquent's parameterized queries already prevent actual injection
                     Log::critical('Suspicious input pattern detected', [

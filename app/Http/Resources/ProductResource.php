@@ -22,10 +22,8 @@ class ProductResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
-            'description' => $this->when(
-                $request->query('include_description'),
-                \Str::limit($this->description, 150)
-            ),
+            // Always include description (full text for single view, can be limited for listings if needed)
+            'description' => $this->description,
             'brand' => $this->brand,
             'base_price' => (float) $this->base_price,
             'is_active' => $this->is_active,
@@ -86,7 +84,7 @@ class ProductResource extends JsonResource
             'gallery_count' => $this->getMedia('gallery')->count(),
 
             // Variants - Full details for admin editing
-            'variants' => $this->whenLoaded('variants', fn() => 
+            'variants' => $this->whenLoaded('variants', fn() =>
                 ProductVariantResource::collection($this->variants)
             ),
 

@@ -181,12 +181,12 @@ class ProductController extends Controller
             }
         }
 
-        // Process base64 images from 'images' field
+        // Process base64 images from 'images' field - all go to gallery
         if (!empty($imagesData)) {
             foreach ($imagesData as $index => $imageData) {
                 if (preg_match('/^data:image\/(\w+);base64,/', $imageData)) {
-                    // It's a base64 image - convert and upload
-                    $this->uploadBase64Image($product, $imageData, $index === 0 ? 'main_image' : 'gallery');
+                    // It's a base64 image - convert and upload to gallery
+                    $this->uploadBase64Image($product, $imageData, 'gallery');
                 }
                 // URLs are ignored - we only store files now
             }
@@ -297,12 +297,12 @@ class ProductController extends Controller
             }
         }
 
-        // Process base64 images from 'images' field
+        // Process base64 images from 'images' field - all go to gallery
         if (!empty($imagesData)) {
             foreach ($imagesData as $index => $imageData) {
                 if (preg_match('/^data:image\/(\w+);base64,/', $imageData)) {
-                    // It's a base64 image - convert and upload
-                    $this->uploadBase64Image($product, $imageData, $index === 0 ? 'main_image' : 'gallery');
+                    // It's a base64 image - convert and upload to gallery
+                    $this->uploadBase64Image($product, $imageData, 'gallery');
                 }
                 // URLs are ignored - we only store files now
             }
