@@ -202,8 +202,8 @@ Route::get('/page-content/{pageKey}', [App\Http\Controllers\API\PageContentContr
 Route::get('/packages/featured', [PackageDealController::class, 'featured']);
 Route::get('/packages/{slug}', [PackageDealController::class, 'show']);
 
-// Public order tracking by reference (used by email tracking links)
-Route::get('/orders/ref/{reference}', [OrderController::class, 'publicShowByReference']);
+// Public order tracking by reference (used by email tracking links - no authentication required)
+Route::get('/orders/track/{reference}', [OrderController::class, 'publicShowByReference']);
 
 // Cart routes - allow guest usage
 Route::post('/cart/add', [CartController::class, 'add']);
@@ -341,9 +341,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Page content management for admin users
     Route::put('/page-content/{pageKey}', [App\Http\Controllers\API\PageContentController::class, 'update']);
 
+    // User orders (authenticated)
     Route::apiResource('orders', OrderController::class)->only(['index', 'show']);
-    // Secure endpoint to fetch order by reference number (safer than exposing DB id)
+    // Secure order tracking by reference - validates user owns the order
     Route::get('/orders/ref/{reference}', [OrderController::class, 'showByReference']);
+    
     Route::apiResource('addresses', AddressController::class);
     Route::get('/addresses/{address}/can-delete', [AddressController::class, 'canDelete']);
 
