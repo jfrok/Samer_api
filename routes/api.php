@@ -232,6 +232,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/media-library/cleanup-orphaned', [MediaLibraryController::class, 'cleanupOrphaned']);
 
         Route::apiResource('categories', CategoryController::class);
+        Route::get('/categories/icons/available', [CategoryController::class, 'getAvailableIcons']);
         Route::get('/dashboard/stats', [ProductController::class, 'dashboardStats']);
 
         // Orders admin routes

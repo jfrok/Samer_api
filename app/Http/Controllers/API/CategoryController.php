@@ -48,6 +48,7 @@ class CategoryController extends Controller
                 'name' => $parent->name,
                 'slug' => $parent->slug,
                 'description' => $parent->description,
+                'icon' => $parent->icon,
                 'parent_id' => null,
                 'children' => []
             ];
@@ -61,6 +62,7 @@ class CategoryController extends Controller
                     'name' => $child->name,
                     'slug' => $child->slug,
                     'description' => $child->description,
+                    'icon' => $child->icon,
                     'parent_id' => $child->parent_id
                 ];
             }
@@ -97,6 +99,7 @@ class CategoryController extends Controller
                     'name' => $category->name,
                     'slug' => $category->slug,
                     'description' => $category->description,
+                    'icon' => $category->icon,
                     'parent_id' => $category->parent_id,
                     'children' => $category->children->map(function ($child) {
                         return [
@@ -104,6 +107,7 @@ class CategoryController extends Controller
                             'name' => $child->name,
                             'slug' => $child->slug,
                             'description' => $child->description,
+                            'icon' => $child->icon,
                             'parent_id' => $child->parent_id
                         ];
                     })
@@ -127,7 +131,13 @@ class CategoryController extends Controller
                 'name' => 'required|string|max:255|unique:categories,name',
                 'slug' => 'nullable|string|max:255|unique:categories,slug',
                 'description' => 'nullable|string|max:1000',
-                'parent_id' => 'nullable|integer|exists:categories,id'
+                'parent_id' => 'nullable|integer|exists:categories,id',
+                'icon' => ['nullable', 'string', 'max:100', function ($attribute, $value, $fail) {
+                    $availableIcons = array_keys(config('category-icons', []));
+                    if (!in_array($value, $availableIcons)) {
+                        $fail('The selected icon is invalid. Use GET /api/admin/categories/icons to see available icons.');
+                    }
+                }]
             ]);
 
             // Auto-generate slug if not provided
@@ -148,6 +158,7 @@ class CategoryController extends Controller
                     'name' => $category->name,
                     'slug' => $category->slug,
                     'description' => $category->description,
+                    'icon' => $category->icon,
                     'parent_id' => $category->parent_id
                 ]
             ], 201);
@@ -178,7 +189,13 @@ class CategoryController extends Controller
                 'name' => 'required|string|max:255|unique:categories,name,' . $id,
                 'slug' => 'nullable|string|max:255|unique:categories,slug,' . $id,
                 'description' => 'nullable|string|max:1000',
-                'parent_id' => 'nullable|integer|exists:categories,id'
+                'parent_id' => 'nullable|integer|exists:categories,id',
+                'icon' => ['nullable', 'string', 'max:100', function ($attribute, $value, $fail) {
+                    $availableIcons = array_keys(config('category-icons', []));
+                    if (!in_array($value, $availableIcons)) {
+                        $fail('The selected icon is invalid. Use GET /api/admin/categories/icons to see available icons.');
+                    }
+                }]
             ]);
 
             // Prevent self-referencing parent
@@ -207,6 +224,7 @@ class CategoryController extends Controller
                     'name' => $category->name,
                     'slug' => $category->slug,
                     'description' => $category->description,
+                    'icon' => $category->icon,
                     'parent_id' => $category->parent_id
                 ]
             ]);
@@ -264,6 +282,57 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Failed to delete category',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get all available category icons
+     * Returns icons grouped by category for easier selection in UI
+     */
+    public function getAvailableIcons()
+    {
+        try {
+            $icons = config('category-icons', []);
+
+            // Group icons by category
+            $grouped = [];
+            foreach ($icons as $key => $icon) {
+                $category = $icon['category'] ?? 'general';
+                if (!isset($grouped[$category])) {
+                    $grouped[$category] = [];
+                }
+                $grouped[$category][] = [
+                    'key' => $key,
+                    'name' => $icon['name'],
+                    'class' => $icon['class']
+                ];
+            }
+
+            // Also provide flat list for simple dropdowns
+            $flat = [];
+            foreach ($icons as $key => $icon) {
+                $flat[] = [
+                    'key' => $key,
+                    'name' => $icon['name'],
+                    'class' => $icon['class'],
+                    'category' => $icon['category'] ?? 'general'
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'grouped' => $grouped,
+                    'flat' => $flat,
+                    'total' => count($icons)
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to fetch icons',
                 'message' => $e->getMessage()
             ], 500);
         }
