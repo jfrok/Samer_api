@@ -8,13 +8,12 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use App\Models\Discount;
-use App\Notifications\OrderCreatedNotification;
+use App\Jobs\SendOrderConfirmationJob;
+use App\Jobs\SendOwnerOrderNotificationJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
-use App\Notifications\OwnerOrderCreatedNotification;
 
 class OrderController extends Controller
 {
@@ -305,26 +304,31 @@ class OrderController extends Controller
 
             DB::commit();
 
-            // Send order created notification to the customer
-            try {
-                if ($order->user) {
-                    $order->user->notify(new OrderCreatedNotification($order));
-                }
-            } catch (\Exception $e) {
-                Log::error('Order notification failed: ' . $e->getMessage());
+            // Dispatch async job to send order confirmation email to customer
+            // Email will be sent ~1 minute after order creation to avoid blocking the API response
+            if ($order->user) {
+                SendOrderConfirmationJob::dispatch($order)
+                    ->delay(now()->addMinute());
+
+                Log::info('Order confirmation email job dispatched', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number
+                ]);
             }
 
-            // Send order created email to the store owner
-            try {
-                $ownerEmail = config('mail.owner_email') ?? env('OWNER_EMAIL');
-                if ($ownerEmail) {
-                    Notification::route('mail', $ownerEmail)
-                        ->notify(new OwnerOrderCreatedNotification($order));
-                } else {
-                    Log::warning('Owner email not configured. Set MAIL_OWNER_EMAIL or OWNER_EMAIL env.');
-                }
-            } catch (\Exception $e) {
-                Log::error('Owner order notification failed: ' . $e->getMessage());
+            // Dispatch async job to send notification to store owner
+            $ownerEmail = config('mail.owner_email') ?? env('OWNER_EMAIL');
+            if ($ownerEmail) {
+                SendOwnerOrderNotificationJob::dispatch($order, $ownerEmail)
+                    ->delay(now()->addMinute());
+
+                Log::info('Owner notification job dispatched', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'owner_email' => $ownerEmail
+                ]);
+            } else {
+                Log::warning('Owner email not configured. Set MAIL_OWNER_EMAIL or OWNER_EMAIL env.');
             }
 
             return response()->json([

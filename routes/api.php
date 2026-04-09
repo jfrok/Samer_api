@@ -104,8 +104,8 @@ Route::get('/test-email/{email}', function ($email) {
         return response()->json([
             'status' => 'success',
             'message' => 'Test email sent successfully to ' . $email,
-            'mailer' => config('mail.default'),
-            'from' => config('mail.from.address')
+            'mailer' => 'smtp',
+            'from' => 'no-reply@samsmy.com'
         ]);
     } catch (\Exception $e) {
         return response()->json([
@@ -126,7 +126,7 @@ Route::prefix('mail')->group(function () {
     Route::get('/health', [MailController::class, 'getSystemHealth']);
 
     // Language testing routes
-    Route::post('/test-languages', function(Request $request) {
+    Route::post('/test-languages', function(\Illuminate\Http\Request $request) {
         $results = [];
         $email = $request->input('email', 'test@example.com');
         $name = $request->input('name', 'Test User');
@@ -345,7 +345,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('orders', OrderController::class)->only(['index', 'show']);
     // Secure order tracking by reference - validates user owns the order
     Route::get('/orders/ref/{reference}', [OrderController::class, 'showByReference']);
-    
+
     Route::apiResource('addresses', AddressController::class);
     Route::get('/addresses/{address}/can-delete', [AddressController::class, 'canDelete']);
 
