@@ -64,43 +64,55 @@ class Product extends Model implements HasMedia
         // Main product image
         $this->addMediaCollection('main_image')
             ->singleFile()
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-            ->registerMediaConversions(function () {
-                $this->addMediaConversion('thumb')
-                    ->width(150)
-                    ->height(150)
-                    ->sharpen(10);
-
-                $this->addMediaConversion('medium')
-                    ->width(500)
-                    ->height(500)
-                    ->optimize();
-
-                $this->addMediaConversion('large')
-                    ->width(1200)
-                    ->height(1200)
-                    ->quality(90);
-            });
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
         // Product gallery (multiple images)
         $this->addMediaCollection('gallery')
-            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-            ->registerMediaConversions(function () {
-                $this->addMediaConversion('thumb')
-                    ->width(200)
-                    ->height(200)
-                    ->sharpen(10);
+            ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+    }
 
-                $this->addMediaConversion('medium')
-                    ->width(600)
-                    ->height(600)
-                    ->optimize();
+    /**
+     * Register media conversions
+     */
+    public function registerMediaConversions(\Spatie\MediaLibrary\MediaCollections\Models\Media $media = null): void
+    {
+        // Conversions for main_image collection
+        $this->addMediaConversion('thumb')
+            ->performOnCollections('main_image')
+            ->width(150)
+            ->height(150)
+            ->sharpen(10);
 
-                $this->addMediaConversion('large')
-                    ->width(1200)
-                    ->height(1200)
-                    ->quality(85);
-            });
+        $this->addMediaConversion('medium')
+            ->performOnCollections('main_image')
+            ->width(500)
+            ->height(500)
+            ->optimize();
+
+        $this->addMediaConversion('large')
+            ->performOnCollections('main_image')
+            ->width(1200)
+            ->height(1200)
+            ->quality(90);
+
+        // Conversions for gallery collection
+        $this->addMediaConversion('thumb')
+            ->performOnCollections('gallery')
+            ->width(200)
+            ->height(200)
+            ->sharpen(10);
+
+        $this->addMediaConversion('medium')
+            ->performOnCollections('gallery')
+            ->width(600)
+            ->height(600)
+            ->optimize();
+
+        $this->addMediaConversion('large')
+            ->performOnCollections('gallery')
+            ->width(1200)
+            ->height(1200)
+            ->quality(85);
     }
 
     public function likedByUsers()
