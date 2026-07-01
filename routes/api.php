@@ -197,7 +197,7 @@ Route::post('/categories/clear-cache', [CategoryController::class, 'clearCache']
 Route::post('/discounts/validate', [DiscountController::class, 'validateCode']);  // Public for cart preview
 Route::get('/settings/payment-methods', [SettingsController::class, 'paymentMethods']);
 
-// Public review routes
+// Public review routes s
 Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
 
 // Package deals routes
