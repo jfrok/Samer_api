@@ -174,6 +174,7 @@ class OrderController extends Controller
             'shipping_address.email' => 'nullable|email|max:255',
             'shipping_address.phone' => ['required','string','max:20','regex:/^[0-9+\-\s()]+$/'],
             'shipping_address.address' => 'required|string|max:255',
+            'shipping_address.closestPoint' => 'nullable|string|max:500',
             'shipping_address.city' => 'required|string|max:100',
             'shipping_address.postalCode' => 'nullable|string|max:20',
             'payment_method' => 'required|in:card,cash',
@@ -266,6 +267,7 @@ class OrderController extends Controller
             $shippingAddress = \App\Models\Address::create([
                 'user_id' => $user?->id, // null for guest users
                 'street' => $request->input('shipping_address.address'),
+                'closest_point' => $request->input('shipping_address.closestPoint') ?: $request->input('shipping_address.closest_point'),
                 'city' => $request->input('shipping_address.city'),
                 'state' => $request->input('shipping_address.city'), // Use city as state for now
                 'zip_code' => $request->input('shipping_address.postalCode', '00000'),
