@@ -76,6 +76,7 @@ class OrderResource extends JsonResource
                     'last_name' => $this->customer_last_name,
                     'email' => $this->customer_email,
                     'street' => $addr->street,
+                    'closest_point' => $addr->closest_point,
                     'city' => $addr->city,
                     'state' => $addr->state,
                     'zip_code' => $addr->zip_code,

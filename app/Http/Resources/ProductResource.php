@@ -17,6 +17,7 @@ class ProductResource extends JsonResource
     {
         // Get one featured image (first gallery image)
         $featuredImage = $this->getFirstMedia('gallery');
+        $legacyImages = is_array($this->images) ? $this->images : [];
 
         return [
             'id' => $this->id,
@@ -41,10 +42,11 @@ class ProductResource extends JsonResource
                 'thumb' => $featuredImage->getUrl('thumb'),
                 'medium' => $featuredImage->getUrl('medium'),
                 'alt_text' => $featuredImage->getCustomProperty('alt_text', $this->name),
-            ] : null,
+            ] : ($legacyImages ? ['url' => $legacyImages[0]] : null),
 
             // Full Gallery with all images
-            'gallery' => $this->getMedia('gallery')->map(function ($media) {
+            'gallery' => $this->getMedia('gallery')->isNotEmpty()
+                ? $this->getMedia('gallery')->map(function ($media) {
                 return [
                     'id' => $media->id,
                     'uuid' => $media->uuid,
@@ -78,7 +80,8 @@ class ProductResource extends JsonResource
                     'mime_type' => $media->mime_type,
                     'size' => $media->size,
                 ];
-            }),
+            })
+                : collect($legacyImages)->map(fn($url) => ['url' => $url]),
 
             // Gallery count
             'gallery_count' => $this->getMedia('gallery')->count(),

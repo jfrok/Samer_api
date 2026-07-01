@@ -15,11 +15,13 @@ class OtpCode extends Model
         'code',
         'purpose',
         'expires_at',
-        'used'
+        'used',
+        'verified_at'
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
+        'verified_at' => 'datetime',
         'used' => 'boolean',
     ];
 
@@ -47,7 +49,7 @@ class OtpCode extends Model
     }
 
     /**
-     * Verify an OTP code
+     * Verify an OTP code and mark verified_at (Step 2 - does NOT consume/use the OTP)
      */
     public static function verify(string $email, string $code, string $purpose = 'registration'): bool
     {
@@ -55,6 +57,47 @@ class OtpCode extends Model
             ->where('code', $code)
             ->where('purpose', $purpose)
             ->where('used', false)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if ($otp) {
+            $otp->update(['verified_at' => now()]);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Consume an OTP that was already verified (Step 3 - marks used = true)
+     */
+    public static function consume(string $email, string $code, string $purpose = 'registration'): bool
+    {
+        $otp = self::where('email', $email)
+            ->where('code', $code)
+            ->where('purpose', $purpose)
+            ->where('used', false)
+            ->whereNotNull('verified_at')
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if ($otp) {
+            $otp->update(['used' => true]);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Consume a verified OTP by email only (Step 3 - no code needed, just checks verified_at is set)
+     */
+    public static function consumeVerified(string $email, string $purpose = 'registration'): bool
+    {
+        $otp = self::where('email', $email)
+            ->where('purpose', $purpose)
+            ->where('used', false)
+            ->whereNotNull('verified_at')
             ->where('expires_at', '>', now())
             ->first();
 
