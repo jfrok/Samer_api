@@ -4,14 +4,17 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\OtpCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
+use App\Mail\OtpMail;
 
 class AuthController extends Controller
 {
@@ -140,6 +143,116 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
         return response()->json(['token' => $token, 'user' => $user], 201);
+    }
+
+    // OTP Registration Flow - Step 1: Send OTP to email
+    public function sendOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email|max:255',
+        ]);
+
+        // Check if email already registered
+        if (User::where('email', $request->email)->exists()) {
+            return response()->json([
+                'message' => 'Email already registered'
+            ], 409);
+        }
+
+        // Generate and send OTP
+        $otpRecord = OtpCode::generate($request->email, 'registration');
+
+        try {
+            // Get language preference (default to Arabic)
+            $language = $request->input('language', 'ar');
+
+            Mail::to($request->email)->send(new OtpMail($otpRecord->code, $language));
+
+            Log::info('OTP sent successfully', [
+                'email' => $request->email,
+                'purpose' => 'registration',
+                'expires_at' => $otpRecord->expires_at
+            ]);
+
+            return response()->json([
+                'message' => 'OTP sent successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Failed to send OTP email', [
+                'email' => $request->email,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to send OTP email. Please try again.'
+            ], 500);
+        }
+    }
+
+    // OTP Registration Flow - Step 2: Validate OTP
+    public function validateOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email',
+            'otp' => 'required|string',
+        ]);
+
+        $isValid = OtpCode::verify($request->email, $request->otp, 'registration');
+
+        if (!$isValid) {
+            return response()->json([
+                'message' => 'Invalid or expired OTP'
+            ], 422);
+        }
+
+        Log::info('OTP verified successfully', [
+            'email' => $request->email,
+            'purpose' => 'registration'
+        ]);
+
+        return response()->json([
+            'message' => 'OTP verified successfully'
+        ], 200);
+    }
+
+    // OTP Registration Flow - Step 3: Complete registration with verified OTP
+    public function completeRegistration(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|string|email|max:255|unique:users',
+            'name' => 'required|string|max:255',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        // Consume the OTP that was verified in Step 2 (checks verified_at is not null)
+        $isValid = OtpCode::where('email', $request->email)->whereNotNull('verified_at')->first();
+
+        if (!$isValid) {
+            return response()->json([
+                'message' => 'Invalid or expired OTP'
+            ], 401);
+        }
+
+        // Create user with email verified
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'phone' => $request->input('phone'),
+            'email_verified_at' => now(), // Email is verified via OTP
+        ]);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        Log::info('User registered successfully with OTP', [
+            'user_id' => $user->id,
+            'email' => $user->email
+        ]);
+
+        return response()->json([
+            'token' => $token,
+            'user' => $user
+        ], 200);
     }
 
     // Email/password login

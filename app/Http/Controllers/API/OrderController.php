@@ -27,7 +27,12 @@ class OrderController extends Controller
 
     public function index()
     {
-        $orders = Order::where('user_id', Auth::id())
+        $user = Auth::user();
+
+        $orders = Order::where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->orWhere('customer_email', $user->email);
+            })
             ->with([
                 'items.productVariant.product.media',
                 'shippingAddress'

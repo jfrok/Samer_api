@@ -25,28 +25,28 @@ class ImprovedProductSeeder extends Seeder
 
         $productNames = [
             'Electronics' => [
-                'MacBook Pro', 'Dell XPS', 'HP Pavilion', 'Lenovo ThinkPad', 'Asus ROG',
-                'iPhone 15', 'Samsung Galaxy S24', 'Google Pixel 8', 'OnePlus 12', 'Xiaomi 14',
-                'Canon EOS R5', 'Sony A7 IV', 'Nikon Z8', 'Fujifilm X-T5', 'Panasonic GH6',
-                'LG OLED TV', 'Samsung QLED', 'Sony Bravia', 'TCL Smart TV', 'Roku Ultra',
-                'Sony WH-1000XM5', 'Bose QuietComfort', 'AirPods Pro', 'JBL Flip 6', 'Beats Studio'
+                'ماك بوك برو', 'لابتوب ديل إكس بي إس', 'لابتوب HP بافيليون', 'لينوفو ثينك باد', 'أسوس ROG',
+                'آيفون 15', 'سامسونج جالاكسي S24', 'جوجل بيكسل 8', 'ون بلس 12', 'شاومي 14 برو',
+                'كاميرا كانون EOS R5', 'كاميرا سوني A7 IV', 'كاميرا نيكون Z8', 'كاميرا فوجي فيلم', 'كاميرا باناسونيك',
+                'تلفزيون LG OLED', 'تلفزيون سامسونج QLED', 'تلفزيون سوني برافيا', 'تلفزيون TCL الذكي', 'بروجكتور محمول',
+                'سماعة سوني WH-1000XM5', 'سماعة بوز كوايت كومفورت', 'إيربودز برو', 'سماعة JBL', 'سماعة بيتس'
             ],
             'Fashion' => [
-                'Classic Cotton T-Shirt', 'Slim Fit Jeans', 'Casual Button Down', 'Leather Jacket',
-                'Summer Dress', 'Yoga Pants', 'Blazer', 'Hoodie', 'Polo Shirt', 'Cardigan',
-                'Running Shoes', 'Leather Boots', 'Canvas Sneakers', 'Loafers', 'High Heels',
-                'Crossbody Bag', 'Backpack', 'Wallet', 'Watch', 'Sunglasses'
+                'تيشيرت قطني كلاسيكي', 'جينز سليم فيت', 'قميص كاجوال', 'جاكيت جلد', 'فستان صيفي',
+                'بنطلون يوغا', 'بليزر رسمي', 'هودي مريح', 'بولو شيرت', 'كارديجان صوف',
+                'حذاء رياضي', 'حذاء جلدي', 'كنفاس سنيكرز', 'حذاء لوفر', 'حذاء بكعب عالي',
+                'شنطة كروسبودي', 'حقيبة ظهر', 'محفظة جلدية', 'ساعة كلاسيكية', 'نظارة شمسية'
             ],
             'Home' => [
-                'Air Conditioner', 'Refrigerator', 'Washing Machine', 'Microwave Oven', 'Blender',
-                'Cooking Pan Set', 'Chef Knife Set', 'Dinner Plate Set', 'Coffee Maker', 'Toaster',
-                'Sofa Set', 'Dining Table', 'Office Chair', 'Bookshelf', 'Bed Frame',
-                'Table Lamp', 'Wall Clock', 'Photo Frame', 'Throw Pillow', 'Area Rug'
+                'مكيف هواء سبليت', 'ثلاجة نوفروست', 'غسالة ملابس أوتوماتيك', 'ميكروويف ديجيتال', 'خلاط كهربائي',
+                'طقم مقالي غير لاصقة', 'طقم سكاكين مطبخ', 'طقم أطباق بورسلين', 'ماكينة قهوة', 'توستر كهربائي',
+                'طقم كنب زاوية', 'طاولة طعام خشبية', 'كرسي مكتب مريح', 'رف كتب خشبي', 'سرير مع تخزين',
+                'مصباح طاولة', 'ساعة حائط', 'إطار صور', 'وسادة زينة', 'سجادة غرفة'
             ],
             'Sports' => [
-                'Dumbbell Set', 'Yoga Mat', 'Treadmill', 'Exercise Ball', 'Resistance Bands',
-                'Camping Tent', 'Sleeping Bag', 'Hiking Backpack', 'Portable Stove', 'Flashlight',
-                'Running Shorts', 'Sports Bra', 'Training Shirt', 'Athletic Socks', 'Track Jacket'
+                'طقم دمبل متدرج', 'حصيرة يوغا', 'جهاز مشي كهربائي', 'كرة تمارين', 'حزام مقاومة',
+                'خيمة تخييم', 'كيس نوم', 'حقيبة مشي جبلي', 'موقد غاز محمول', 'كشاف يدوي',
+                'شورت رياضي', 'تيشيرت تدريب', 'جوارب رياضية', 'جاكيت رياضي', 'طقم ملابس رياضية'
             ]
         ];
 
@@ -57,7 +57,7 @@ class ImprovedProductSeeder extends Seeder
             'Sports' => ['Nike', 'Adidas', 'Under Armour', 'Reebok', 'Puma', 'The North Face', 'Columbia', 'Patagonia', 'Lululemon', 'Decathlon']
         ];
 
-        $colors = ['Black', 'White', 'Gray', 'Navy', 'Red', 'Blue', 'Green', 'Yellow', 'Pink', 'Purple', 'Brown', 'Beige'];
+        $colors = ['أسود', 'أبيض', 'رمادي', 'كحلي', 'أحمر', 'أزرق', 'أخضر', 'أصفر', 'وردي', 'بنفسجي', 'بني', 'بيج'];
         $sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
         $shoeSizes = ['6', '7', '8', '9', '10', '11', '12'];
 
@@ -76,13 +76,13 @@ class ImprovedProductSeeder extends Seeder
                 $basePrice = $faker->randomFloat(2, 29.99, 1999.99);
 
                 $product = Product::create([
-                    'name' => $productName . ' ' . $faker->word(),
+                    'name' => $productName,
                     'description' => $faker->paragraph(3),
                     'category_id' => $category->id,
                     'brand' => $brand,
                     'base_price' => $basePrice,
                     'images' => $this->generateProductImages($category->name),
-                    'slug' => Str::slug($productName . ' ' . $brand . ' ' . $faker->word() . ' ' . uniqid()),
+                    'slug' => Str::slug($brand . '-' . uniqid()),
                     'is_active' => $faker->boolean(90), // 90% active
                 ]);
 
@@ -95,8 +95,8 @@ class ImprovedProductSeeder extends Seeder
 
                 for ($j = 0; $j < $variantCount; $j++) {
                     // Generate unique combinations
-                    $color = $hasColors ? $faker->randomElement($colors) : 'Standard';
-                    $size = $hasSizes ? $faker->randomElement($this->isShoeCategory($category->name) ? $shoeSizes : $sizes) : 'One Size';
+                    $color = $hasColors ? $faker->randomElement($colors) : 'قياسي';
+                    $size = $hasSizes ? $faker->randomElement($this->isShoeCategory($category->name) ? $shoeSizes : $sizes) : 'موحد';
 
                     $combination = $color . '-' . $size;
 

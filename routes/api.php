@@ -157,7 +157,15 @@ Route::prefix('mail')->group(function () {
 
 // Public routes with rate limiting for authentication
 Route::middleware('throttle:5,1')->group(function () {
+    // Standard registration (no OTP)
     Route::post('/register', [AuthController::class, 'register']);
+    
+    // OTP-based registration flow
+    Route::post('/register/email', [AuthController::class, 'sendOtp']);
+    Route::post('/register/validate-otp', [AuthController::class, 'validateOtp']);
+    Route::post('/register/complete', [AuthController::class, 'completeRegistration']);
+    
+    // Authentication
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/admin/login', [AuthController::class, 'adminLogin']);
     Route::post('/auth/oauth/callback', [AuthController::class, 'handleOAuthCallback']);

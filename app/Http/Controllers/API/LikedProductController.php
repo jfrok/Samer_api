@@ -16,7 +16,7 @@ class LikedProductController extends Controller
     {
         $user = $request->user();
         $likedProducts = $user->likedProducts()
-            ->with(['category', 'variants'])
+            ->with(['category', 'variants', 'media'])
             ->active()
             ->get();
 

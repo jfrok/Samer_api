@@ -12,44 +12,48 @@ class CategorySeeder extends Seeder
     {
         $categories = [
             [
-                'name' => 'Electronics',
-                'description' => 'Electronic devices and gadgets',
+                'name' => 'إلكترونيات',
+                'slug' => 'electronics',
+                'description' => 'أجهزة ومعدات إلكترونية متنوعة',
                 'children' => [
-                    ['name' => 'Computers & Laptops', 'description' => 'Desktop computers, laptops, and accessories'],
-                    ['name' => 'Mobile & Phones', 'description' => 'Smartphones, tablets, and mobile accessories'],
-                    ['name' => 'Camera & Imaging', 'description' => 'Digital cameras, lenses, and photography equipment'],
-                    ['name' => 'TV & Smart Box', 'description' => 'Televisions, streaming devices, and entertainment'],
-                    ['name' => 'Audio & Headphones', 'description' => 'Headphones, speakers, and audio equipment'],
+                    ['name' => 'كمبيوترات ولابتوبات', 'slug' => 'computers-laptops', 'description' => 'أجهزة كمبيوتر مكتبية ومحمولة وملحقاتها'],
+                    ['name' => 'الجوالات والهواتف', 'slug' => 'mobile-phones', 'description' => 'هواتف ذكية وأجهزة لوحية وإكسسوارات'],
+                    ['name' => 'الكاميرات والتصوير', 'slug' => 'cameras-imaging', 'description' => 'كاميرات رقمية وعدسات ومعدات التصوير'],
+                    ['name' => 'التلفزيونات والشاشات', 'slug' => 'tv-screens', 'description' => 'تلفزيونات ذكية وشاشات عرض'],
+                    ['name' => 'الصوتيات وسماعات الرأس', 'slug' => 'audio-headphones', 'description' => 'سماعات رأس ومكبرات صوت ومعدات صوتية'],
                 ]
             ],
             [
-                'name' => 'Fashion',
-                'description' => 'Clothing and fashion accessories',
+                'name' => 'الأزياء والملابس',
+                'slug' => 'fashion',
+                'description' => 'ملابس وإكسسوارات الموضة',
                 'children' => [
-                    ['name' => 'Men\'s Clothing', 'description' => 'T-shirts, shirts, pants, and more'],
-                    ['name' => 'Women\'s Clothing', 'description' => 'Dresses, tops, skirts, and more'],
-                    ['name' => 'Men\'s Shoes', 'description' => 'Sneakers, boots, formal shoes'],
-                    ['name' => 'Women\'s Shoes', 'description' => 'Heels, flats, sneakers, boots'],
-                    ['name' => 'Accessories', 'description' => 'Bags, belts, watches, and jewelry'],
+                    ['name' => 'ملابس رجالية', 'slug' => 'mens-clothing', 'description' => 'تيشيرتات وقمصان وبناطيل رجالية'],
+                    ['name' => 'ملابس نسائية', 'slug' => 'womens-clothing', 'description' => 'فساتين وتوبات وتنانير نسائية'],
+                    ['name' => 'أحذية رجالية', 'slug' => 'mens-shoes', 'description' => 'أحذية رياضية وكلاسيكية ورسمية للرجال'],
+                    ['name' => 'أحذية نسائية', 'slug' => 'womens-shoes', 'description' => 'أحذية بكعب وسهل الارتداء ورياضية للنساء'],
+                    ['name' => 'إكسسوارات', 'slug' => 'accessories', 'description' => 'حقائب وأحزمة وساعات ومجوهرات'],
                 ]
             ],
             [
-                'name' => 'Home & Living',
-                'description' => 'Home appliances and decor',
+                'name' => 'المنزل والمعيشة',
+                'slug' => 'home-living',
+                'description' => 'أجهزة منزلية وديكور',
                 'children' => [
-                    ['name' => 'Home Appliances', 'description' => 'Air conditioners, refrigerators, washing machines'],
-                    ['name' => 'Kitchen & Dining', 'description' => 'Cookware, utensils, and dining sets'],
-                    ['name' => 'Furniture', 'description' => 'Sofas, tables, chairs, and storage'],
-                    ['name' => 'Home Decor', 'description' => 'Wall art, lighting, and decorative items'],
+                    ['name' => 'الأجهزة المنزلية', 'slug' => 'home-appliances', 'description' => 'مكيفات وثلاجات وغسالات'],
+                    ['name' => 'المطبخ وأدوات الطعام', 'slug' => 'kitchen-dining', 'description' => 'أواني طبخ وأدوات مائدة'],
+                    ['name' => 'الأثاث', 'slug' => 'furniture', 'description' => 'كنب وطاولات وكراسي وتخزين'],
+                    ['name' => 'ديكور المنزل', 'slug' => 'home-decor', 'description' => 'لوحات جدارية وإضاءة وقطع زينة'],
                 ]
             ],
             [
-                'name' => 'Sports & Outdoors',
-                'description' => 'Sports equipment and outdoor gear',
+                'name' => 'الرياضة والهواء الطلق',
+                'slug' => 'sports-outdoors',
+                'description' => 'معدات رياضية وأدوات للأنشطة الخارجية',
                 'children' => [
-                    ['name' => 'Fitness Equipment', 'description' => 'Weights, yoga mats, and exercise gear'],
-                    ['name' => 'Outdoor Recreation', 'description' => 'Camping, hiking, and outdoor activities'],
-                    ['name' => 'Sports Wear', 'description' => 'Athletic clothing and shoes'],
+                    ['name' => 'أجهزة اللياقة البدنية', 'slug' => 'fitness-equipment', 'description' => 'أثقال وحصائر يوغا ومعدات رياضية'],
+                    ['name' => 'الأنشطة الخارجية', 'slug' => 'outdoor-recreation', 'description' => 'التخييم والمشي لمسافات طويلة'],
+                    ['name' => 'الملابس الرياضية', 'slug' => 'sportswear', 'description' => 'ملابس وأحذية رياضية'],
                 ]
             ],
         ];
@@ -57,7 +61,7 @@ class CategorySeeder extends Seeder
         foreach ($categories as $parentData) {
             $parent = Category::create([
                 'name' => $parentData['name'],
-                'slug' => Str::slug($parentData['name']),
+                'slug' => $parentData['slug'],
                 'description' => $parentData['description'],
                 'parent_id' => null,
             ]);
@@ -65,7 +69,7 @@ class CategorySeeder extends Seeder
             foreach ($parentData['children'] as $childData) {
                 Category::create([
                     'name' => $childData['name'],
-                    'slug' => Str::slug($childData['name']),
+                    'slug' => $childData['slug'],
                     'description' => $childData['description'],
                     'parent_id' => $parent->id,
                 ]);
