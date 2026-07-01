@@ -9,6 +9,36 @@ use Illuminate\Http\Request;
 class SettingsController extends Controller
 {
     /**
+     * Get public payment method settings for the storefront.
+     */
+    public function paymentMethods()
+    {
+        try {
+            $settings = AppSetting::whereIn('key', [
+                'enable_card_payment',
+                'enable_cash_on_delivery',
+            ])->get()->keyBy('key');
+
+            $cardEnabled = filter_var(optional($settings->get('enable_card_payment'))->value ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $cashEnabled = filter_var(optional($settings->get('enable_cash_on_delivery'))->value ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'card_enabled' => $cardEnabled ?? true,
+                    'cash_enabled' => $cashEnabled ?? true,
+                ],
+                'message' => 'Payment settings retrieved successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve payment settings: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get all settings
      */
     public function index()

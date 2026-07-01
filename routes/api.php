@@ -159,12 +159,12 @@ Route::prefix('mail')->group(function () {
 Route::middleware('throttle:5,1')->group(function () {
     // Standard registration (no OTP)
     Route::post('/register', [AuthController::class, 'register']);
-    
+
     // OTP-based registration flow
     Route::post('/register/email', [AuthController::class, 'sendOtp']);
     Route::post('/register/validate-otp', [AuthController::class, 'validateOtp']);
     Route::post('/register/complete', [AuthController::class, 'completeRegistration']);
-    
+
     // Authentication
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/admin/login', [AuthController::class, 'adminLogin']);
@@ -195,6 +195,7 @@ Route::get('/categories/{id}', [CategoryController::class, 'show']);
 Route::post('/categories/clear-cache', [CategoryController::class, 'clearCache']); // For development
 
 Route::post('/discounts/validate', [DiscountController::class, 'validateCode']);  // Public for cart preview
+Route::get('/settings/payment-methods', [SettingsController::class, 'paymentMethods']);
 
 // Public review routes
 Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);

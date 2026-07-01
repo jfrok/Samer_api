@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\AppSetting;
 use App\Models\ProductVariant;
 use App\Models\Discount;
 use App\Jobs\SendOrderConfirmationJob;
@@ -184,6 +185,25 @@ class OrderController extends Controller
             'cart_items.*.price' => 'required|numeric|min:0|max:1000000',
         ]);
 
+        $paymentSettings = AppSetting::whereIn('key', [
+            'enable_card_payment',
+            'enable_cash_on_delivery',
+        ])->get()->keyBy('key');
+
+        $cardEnabled = filter_var(optional($paymentSettings->get('enable_card_payment'))->value ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $cashEnabled = filter_var(optional($paymentSettings->get('enable_cash_on_delivery'))->value ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        $cardEnabled = $cardEnabled ?? true;
+        $cashEnabled = $cashEnabled ?? true;
+
+        if ($request->payment_method === 'card' && !$cardEnabled) {
+            return response()->json(['error' => 'Card payment is currently unavailable'], 422);
+        }
+
+        if ($request->payment_method === 'cash' && !$cashEnabled) {
+            return response()->json(['error' => 'Cash on delivery is currently unavailable'], 422);
+        }
+
         $user = Auth::user(); // Will be null for guest users
         $isGuest = !$user;
 
@@ -237,7 +257,7 @@ class OrderController extends Controller
                     }
                 }
             } catch (\Exception $e) {
-                \Log::warning('City lookup failed: ' . $e->getMessage());
+                Log::warning('City lookup failed: ' . $e->getMessage());
             }
 
             $finalTotal = ($total - $discountAmount) + $shippingFee;
