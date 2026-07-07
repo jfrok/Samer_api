@@ -17,16 +17,19 @@ class SettingsController extends Controller
             $settings = AppSetting::whereIn('key', [
                 'enable_card_payment',
                 'enable_cash_on_delivery',
+                'enable_checkout_quiz',
             ])->get()->keyBy('key');
 
             $cardEnabled = filter_var(optional($settings->get('enable_card_payment'))->value ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
             $cashEnabled = filter_var(optional($settings->get('enable_cash_on_delivery'))->value ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $quizEnabled = filter_var(optional($settings->get('enable_checkout_quiz'))->value ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'card_enabled' => $cardEnabled ?? true,
                     'cash_enabled' => $cashEnabled ?? true,
+                    'checkout_quiz_enabled' => $quizEnabled ?? true,
                 ],
                 'message' => 'Payment settings retrieved successfully'
             ]);
