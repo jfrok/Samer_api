@@ -167,6 +167,7 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
+        // Validate request data
         $request->validate([
             'shipping_address' => 'required|array',
             'shipping_address.firstName' => 'required|string|max:100',
