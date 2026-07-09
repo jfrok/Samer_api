@@ -167,6 +167,7 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
+        // Validate request data
         $request->validate([
             'shipping_address' => 'required|array',
             'shipping_address.firstName' => 'required|string|max:100',
@@ -312,9 +313,28 @@ class OrderController extends Controller
                     }
                 }
 
+                $variantModel = null;
+                if ($variantId) {
+                    $variantModel = ProductVariant::withTrashed()
+                        ->with(['product' => function ($query) {
+                            $query->withTrashed();
+                        }])
+                        ->find($variantId);
+                }
+
+                $productModel = $variantModel?->product;
+                $featuredImage = $productModel ? $productModel->getFirstMedia('gallery') : null;
+                $snapshotImage = $featuredImage ? $featuredImage->getUrl('medium') : null;
+
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_variant_id' => $variantId,
+                    'product_name' => $productModel?->name,
+                    'product_slug' => $productModel?->slug,
+                    'product_image_src' => $snapshotImage,
+                    'variant_size' => $variantModel?->size,
+                    'variant_color' => $variantModel?->color,
+                    'variant_sku' => $variantModel?->sku,
                     'quantity' => $cartItem['quantity'] ?? 1,
                     'price' => $cartItem['price'] ?? 0,
                     'subtotal' => ($cartItem['price'] ?? 0) * ($cartItem['quantity'] ?? 1),

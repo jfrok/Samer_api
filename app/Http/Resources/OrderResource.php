@@ -39,6 +39,13 @@ class OrderResource extends JsonResource
                     $variant = $item->productVariant; // may be null if soft-deleted or missing
                     $product = $variant?->product;
                     $featuredImage = $product ? $product->getFirstMedia('gallery') : null;
+                    $productName = $item->product_name ?: ($product?->name);
+                    $productSlug = $item->product_slug ?: ($product?->slug);
+                    $productImageSrc = $item->product_image_src ?: ($featuredImage ? $featuredImage->getUrl('medium') : null);
+                    $productImageThumb = $featuredImage ? $featuredImage->getUrl('thumb') : $item->product_image_src;
+                    $variantSize = $item->variant_size ?: ($variant?->size);
+                    $variantColor = $item->variant_color ?: ($variant?->color);
+                    $variantSku = $item->variant_sku ?: ($variant?->sku);
 
                     return [
                         'id' => $item->id,
@@ -47,21 +54,22 @@ class OrderResource extends JsonResource
                         'quantity' => $item->quantity,
                         'price' => $item->price,
                         'subtotal' => $item->subtotal,
-                        'product_variant' => $variant ? [
-                            'id' => $variant->id,
-                            'product_id' => $variant->product_id,
-                            'size' => $variant->size,
-                            'color' => $variant->color,
-                            'price' => $variant->price,
-                            'product' => $product ? [
-                                'id' => $product->id,
-                                'name' => $product->name,
-                                'slug' => $product->slug,
-                                'image_src' => $featuredImage ? $featuredImage->getUrl('medium') : null,
-                                'image_thumb' => $featuredImage ? $featuredImage->getUrl('thumb') : null,
-                                'description' => $product->description,
-                            ] : null,
-                        ] : null,
+                        'product_variant' => [
+                            'id' => $variant?->id ?? $item->product_variant_id,
+                            'product_id' => $variant?->product_id,
+                            'size' => $variantSize,
+                            'color' => $variantColor,
+                            'sku' => $variantSku,
+                            'price' => $item->price,
+                            'product' => [
+                                'id' => $product?->id,
+                                'name' => $productName,
+                                'slug' => $productSlug,
+                                'image_src' => $productImageSrc,
+                                'image_thumb' => $productImageThumb,
+                                'description' => $product?->description,
+                            ],
+                        ],
                     ];
                 });
             }, []),
